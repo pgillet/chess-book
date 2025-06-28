@@ -6,7 +6,7 @@ from pathlib import Path
 from textwrap import dedent
 
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
-MAX_BOARDS_PER_PAGE = 8
+MAX_BOARDS_PER_PAGE = 6
 
 LATEX_HEADER = dedent(r'''
     \documentclass[10pt]{article}
