@@ -16,6 +16,7 @@ LATEX_HEADER = dedent(r'''
     \usepackage{fancyhdr}
     \usepackage{titlesec}
     \usepackage{parskip}
+    \usepackage{tabularx}
     \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
     \setlength{\parindent}{0pt}
     \pagestyle{fancy}
@@ -93,10 +94,11 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves):
             latex.append("\\newpage")
 
         latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
-        latex.append("\\begin{tabularx}{\\linewidth}{@{}X X@{}}")
-        latex.append(f"\\chessboard[setfen={{ {fen1} }}, boardsize=3.8cm] &")
-        latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardsize=3.8cm] \\\\")
-        latex.append("\\end{tabularx} \\\\[2ex]")
+        latex.append("\\begin{tabularx}{\\linewidth}{X X}")
+        latex.append(f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt] &")
+        latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt] \\\\")
+        latex.append("\\end{tabularx}")
+        latex.append("\\vspace{2ex}")
 
     game_file = output_dir / f"game_{game_index:03}.tex"
     with open(game_file, "w") as f:
