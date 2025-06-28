@@ -27,6 +27,22 @@ LATEX_HEADER = dedent(r'''
 
 LATEX_FOOTER = "\\end{document}"
 
+def escape_latex_special_chars(text):
+    """
+    Escapes common LaTeX special characters in a string.
+    """
+    text = text.replace('\\', '\\textbackslash{}') # Must be first!
+    text = text.replace('&', '\\&')
+    text = text.replace('%', '\\%')
+    text = text.replace('$', '\\$')
+    text = text.replace('#', '\\#')
+    text = text.replace('_', '\\_')
+    text = text.replace('{', '\\{')
+    text = text.replace('}', '\\}')
+    text = text.replace('~', '\\textasciitilde{}')
+    text = text.replace('^', '\\textasciicircum{}')
+    return text
+
 def is_tactical(board, move):
     return board.is_capture(move) or board.gives_check(move)
 
@@ -87,13 +103,18 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves):
     black = game.headers.get("Black", "Black")
     result = game.headers.get("Result", "*")
 
-    latex.append(f"\\section*{{{white} vs {black} ({result}) - {header}}}")
+    white_escaped = escape_latex_special_chars(white)
+    black_escaped = escape_latex_special_chars(black)
+    header_escaped = escape_latex_special_chars(header)
+
+    latex.append(f"\\section*{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
     for i, (move_text, (fen1, fen2)) in enumerate(zip(move_pairs, fen_pairs)):
         if i > 0 and i % (MAX_BOARDS_PER_PAGE // 2) == 0:
             latex.append("\\newpage")
 
-        latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
+        escaped_move_text = escape_latex_special_chars(move_text)
+        latex.append(f"\\textbf{{{escaped_move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
         latex.append(f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt] &")
         latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt] \\\\")
