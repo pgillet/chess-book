@@ -107,6 +107,7 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves):
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
+    latex.append("\\newpage")
     latex.append(f"\\section*{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
     for i, (move_text, (fen1, fen2)) in enumerate(zip(move_pairs, fen_pairs)):
