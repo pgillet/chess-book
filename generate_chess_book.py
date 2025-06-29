@@ -12,7 +12,6 @@ LATEX_HEADER = dedent(r'''
     \documentclass[10pt]{article}
     \usepackage[margin=0.7in]{geometry}
     \usepackage{chessboard}
-    \usepackage{skak}
     \usepackage{multicol}
     \usepackage{fancyhdr}
     \usepackage{titlesec}
@@ -23,6 +22,17 @@ LATEX_HEADER = dedent(r'''
     \pagestyle{fancy}
     \fancyhf{}
     \rhead{\thepage}
+    \usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
+    \usepackage{utfsym} % For \usym command to display Unicode symbols
+
+    % IMPORTANT: You might need to install the 'utfsym' package if you don't have it.
+    % Also, ensure you have a font installed on your system that contains Unicode chess symbols.
+    % Common examples for a font that works well with utfsym:
+    % 'Noto Serif Chess', 'Segoe UI Symbol' (on Windows), 'Symbola', 'Chess Alpha'.
+    % If your font needs to be explicitly set for utfsym, you can uncomment and modify
+    % the line below, replacing 'Your Chess Unicode Font Name' with the exact name
+    % of the font installed on your system:
+    % \setmainfont{Your Chess Unicode Font Name}
     \begin{document}
 ''')
 
@@ -66,25 +76,13 @@ def find_smart_moves(game):
     return smart_moves
 
 
-# New method for generating game notation
+# UPDATED: _generate_game_notation_latex to use utfsym commands
 def _generate_game_notation_latex(game, notation_type):
     notation_lines = []
     board = game.board()
     moves = list(game.mainline_moves())
 
     notation_output = []
-
-    def escape_san_for_latex(san_text):
-        # This function is specifically for SAN components that are not LaTeX commands.
-        # It avoids escaping `\` and `{}` which are part of figurine commands.
-        san_text = san_text.replace('&', '\\&')
-        san_text = san_text.replace('%', '\\%')
-        san_text = san_text.replace('$', '\\$')
-        san_text = san_text.replace('#', '\\#')
-        san_text = san_text.replace('_', '\\_')
-        san_text = san_text.replace('~', '\\textasciitilde{}')
-        san_text = san_text.replace('^', '\\textasciicircum{}')
-        return san_text
 
     for i, move in enumerate(moves):
         move_number = (i // 2) + 1
@@ -95,48 +93,44 @@ def _generate_game_notation_latex(game, notation_type):
         san_move_raw = board.san(move)  # Get the raw SAN first
 
         if notation_type == "figurine":
-            # Map piece symbols to skak commands
-            # Note: skak uses same symbol for black/white pieces in commands
-            piece_fig_map = {
-                'P': r'\sympawn', 'N': r'\symknight', 'B': r'\symbishop',
-                'R': r'\symrook', 'Q': r'\symqueen', 'K': r'\symking',
-                'p': r'\sympawn', 'n': r'\symknight', 'b': r'\symbishop',
-                'r': r'\symrook', 'q': r'\symqueen', 'k': r'\symking',
+            # Map piece symbols to utfsym commands using their Unicode codepoints
+            white_utfsym_map = {
+                'P': r'\usym{2659}', 'N': r'\usym{2658}', 'B': r'\usym{2657}',
+                'R': r'\usym{2656}', 'Q': r'\usym{2655}', 'K': r'\usym{2654}',
+            }
+            black_utfsym_map = {
+                'p': r'\usym{265F}', 'n': r'\usym{265E}', 'b': r'\usym{265D}',
+                'r': r'\usym{265C}', 'q': r'\usym{265B}', 'k': r'\usym{265A}',
             }
 
-            # Get the piece that moved (before making the move on the board)
             moving_piece = board.piece_at(move.from_square)
 
             if moving_piece and moving_piece.piece_type != chess.PAWN:
-                # For non-pawn moves, prepend the figurine command
                 piece_symbol = moving_piece.symbol()
-                figurine_cmd = piece_fig_map.get(piece_symbol, "")
 
-                # Replace the first letter of the SAN with the figurine if it's a piece move
-                # This is a basic approach and might not cover all edge cases of SAN.
+                if moving_piece.color == chess.WHITE:
+                    figurine_cmd = white_utfsym_map.get(piece_symbol, "")
+                else:  # chess.BLACK
+                    figurine_cmd = black_utfsym_map.get(piece_symbol, "")
+
                 if san_move_raw and san_move_raw[0].upper() in 'NBRQK':
-                    # Example: Nf3 -> \symknightf3
-                    move_str = figurine_cmd + " " + san_move_raw[1:]
+                    # Prepend utfsym command and escape the rest of SAN
+                    # Adding a space for clarity/consistency with previous solutions
+                    move_str = figurine_cmd + " " + escape_latex_special_chars(san_move_raw[1:])
                 else:
-                    # Fallback for unexpected SAN format for pieces, or if figurine_cmd is empty
-                    move_str = san_move_raw
+                    move_str = escape_latex_special_chars(san_move_raw)
             else:
-                # Pawn moves or if no moving_piece detected
-                move_str = san_move_raw
-
-            # Apply the limited escape for other special characters in SAN (e.g., #, +, x)
-            move_str = escape_san_for_latex(move_str)
+                move_str = escape_latex_special_chars(san_move_raw)
 
         else:  # Algebraic notation (default)
-            # Use the full escape function for standard algebraic notation
             move_str = escape_latex_special_chars(san_move_raw)
 
         board.push(move)
         notation_output.append(move_str)
 
-    notation_lines.append("\\small\\noindent")  # Smaller font, no indent for the notation
+    notation_lines.append("\\small\\noindent")
     notation_lines.append(" ".join(notation_output))
-    notation_lines.append("\\par\\vspace{1ex}")  # Paragraph break and small vertical space
+    notation_lines.append("\\par\\vspace{1ex}")
 
     return notation_lines
 
@@ -147,7 +141,6 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     moves = list(game.mainline_moves())
 
     try:
-        # Initial board state for smart move analysis display
         current_board_for_board_display = game.board()
         processed_moves_for_display = []
         for i, move in enumerate(moves):
@@ -155,7 +148,6 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
                 'move': move,
                 'san': current_board_for_board_display.san(move),
                 'board_fen_after': current_board_for_board_display.copy().board_fen(),
-                # Board BEFORE push for SAN, then push
                 'is_smart': (i in smart_moves)
             })
             current_board_for_board_display.push(move)
@@ -176,14 +168,11 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     latex.append("\\newpage")
     latex.append(f"\\section*{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
-    # Call the new notation generation method
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
-    # Re-construct move_pairs and fen_pairs for smart moves display, now with all escaping logic
     move_pairs = []
     fen_pairs = []
 
-    # Need to re-simulate moves to get correct FENs for the paired display
     temp_board_for_fen = game.board()
     for i in range(0, len(moves), 2):  # Iterate in steps of 2 (White and Black move pairs)
         current_move_pair_text = f"{(i // 2) + 1}."
