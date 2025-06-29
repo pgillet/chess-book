@@ -17,7 +17,7 @@ LATEX_HEADER = dedent(r'''
     \usepackage{titlesec}
     \usepackage{parskip}
     \usepackage{tabularx}
-    \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
+    \titleformat{\section}{\normalfont\Large\bfseries}{\thesection. }{0pt}{}
     \setlength{\parindent}{0pt}
     \pagestyle{fancy}
     \fancyhf{}
@@ -29,11 +29,13 @@ LATEX_HEADER = dedent(r'''
     % Also, ensure you have a font installed on your system that contains Unicode chess symbols.
     % Common examples for a font that works well with utfsym:
     % 'Noto Serif Chess', 'Segoe UI Symbol' (on Windows), 'Symbola', 'Chess Alpha'.
-    % If your font needs to be explicitly set for utfsym, you can uncomment and modify
+    % If your font needs to be explicitly set for utfsym, uncomment and modify
     % the line below, replacing 'Your Chess Unicode Font Name' with the exact name
     % of the font installed on your system:
     % \setmainfont{Your Chess Unicode Font Name}
     \begin{document}
+    \tableofcontents % Generates the Table of Contents
+    \newpage % Starts the main content on a new page after the TOC
 ''')
 
 LATEX_FOOTER = "\\end{document}"
@@ -76,7 +78,6 @@ def find_smart_moves(game):
     return smart_moves
 
 
-# UPDATED: _generate_game_notation_latex to use utfsym commands
 def _generate_game_notation_latex(game, notation_type):
     notation_lines = []
     board = game.board()
@@ -114,8 +115,6 @@ def _generate_game_notation_latex(game, notation_type):
                     figurine_cmd = black_utfsym_map.get(piece_symbol, "")
 
                 if san_move_raw and san_move_raw[0].upper() in 'NBRQK':
-                    # Prepend utfsym command and escape the rest of SAN
-                    # Adding a space for clarity/consistency with previous solutions
                     move_str = figurine_cmd + " " + escape_latex_special_chars(san_move_raw[1:])
                 else:
                     move_str = escape_latex_special_chars(san_move_raw)
@@ -165,8 +164,8 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
-    latex.append("\\newpage")
-    latex.append(f"\\section*{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
+    latex.append("\\newpage") # Ensure each game starts on a new page (or directly after previous if no page break occurred)
+    latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
