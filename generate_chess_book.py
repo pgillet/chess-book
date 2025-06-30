@@ -17,6 +17,7 @@ LATEX_HEADER = dedent(r'''
     \usepackage{titlesec}
     \usepackage{parskip}
     \usepackage{tabularx}
+    % Ensure section numbering for TOC. This will make section numbers visible in the document.
     \titleformat{\section}{\normalfont\Large\bfseries}{\thesection. }{0pt}{}
     \setlength{\parindent}{0pt}
     \pagestyle{fancy}
@@ -164,7 +165,8 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
-    latex.append("\\newpage") # Ensure each game starts on a new page (or directly after previous if no page break occurred)
+    latex.append(
+        "\\newpage")  # Ensure each game starts on a new page (or directly after previous if no page break occurred)
     latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
     latex.extend(_generate_game_notation_latex(game, notation_type))
@@ -210,6 +212,9 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
         if i > 0 and i % (MAX_BOARDS_PER_PAGE // 2) == 0:
             latex.append("\\newpage")
 
+        # NEW: Use minipage to keep the move text and boards together
+        latex.append(r"\begin{minipage}{\linewidth}")
+
         escaped_move_text = escape_latex_special_chars(move_text)
         latex.append(f"\\textbf{{{escaped_move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
@@ -217,6 +222,8 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
         latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt] \\\\")
         latex.append("\\end{tabularx}")
         latex.append("\\vspace{2ex}")
+
+        latex.append(r"\end{minipage}")  # End minipage
 
     game_file = output_dir / f"game_{game_index:03}.tex"
     with open(game_file, "w") as f:
