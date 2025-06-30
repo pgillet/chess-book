@@ -137,7 +137,7 @@ def _generate_game_notation_latex(game, notation_type):
     return notation_lines
 
 
-def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type):
+def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=True):
     latex = []
     board = game.board()
     moves = list(game.mainline_moves())
@@ -220,8 +220,8 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
         escaped_move_text = escape_latex_special_chars(move_text)
         latex.append(f"\\textbf{{{escaped_move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
-        latex.append(f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt] &")
-        latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt] \\\\")
+        latex.append(f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}] &")
+        latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}] \\\\")
         latex.append("\\end{tabularx}")
         latex.append("\\vspace{2ex}")
 
