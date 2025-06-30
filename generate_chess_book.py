@@ -137,25 +137,10 @@ def _generate_game_notation_latex(game, notation_type):
     return notation_lines
 
 
-def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=True):
+def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=False):
     latex = []
-    board = game.board()
+    board = game.board()  # This board will be advanced to get FEN *after* each move
     moves = list(game.mainline_moves())
-
-    try:
-        current_board_for_board_display = game.board()
-        processed_moves_for_display = []
-        for i, move in enumerate(moves):
-            processed_moves_for_display.append({
-                'move': move,
-                'san': current_board_for_board_display.san(move),
-                'board_fen_after': current_board_for_board_display.copy().board_fen(),
-                'is_smart': (i in smart_moves)
-            })
-            current_board_for_board_display.push(move)
-
-    except Exception as e:
-        raise ValueError(f"Error processing game {game_index}: {e}")
 
     # Game metadata
     header = game.headers.get("Event", f"Game {game_index}")
@@ -168,64 +153,80 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     header_escaped = escape_latex_special_chars(header)
 
     latex.append(
-        "\\newpage")  # Ensure each game starts on a new page (or directly after previous if no page break occurred)
+        "\\newpage")
     latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
     move_pairs = []
-    fen_pairs = []
+    # This will store (move_text, fen_after_white_move, fen_after_black_move, marked_squares_white, marked_squares_black)
+    fen_and_move_data_pairs = []
 
-    temp_board_for_fen = game.board()
+    temp_board_for_fen = game.board()  # Use this board to track position and generate FENs
     for i in range(0, len(moves), 2):  # Iterate in steps of 2 (White and Black move pairs)
         current_move_pair_text = f"{(i // 2) + 1}."
         fens_in_pair = []
+        marked_squares_in_pair = []
         is_smart_pair = False
 
         # White move
+        white_move_obj = None
         if i < len(moves):
-            white_move = moves[i]
-            current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(white_move))}"
-            temp_board_for_fen.push(white_move)
+            white_move_obj = moves[i]
+            current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(white_move_obj))}"
+            temp_board_for_fen.push(white_move_obj)
             fens_in_pair.append(temp_board_for_fen.board_fen())
+            marked_squares_in_pair.append(
+                f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}")
             if i in smart_moves:
                 is_smart_pair = True
         else:
-            # If no white move for some reason at the end (shouldn't happen with proper PGN)
-            continue
+            continue  # Should not happen with valid PGN
 
-            # Black move
+        # Black move
+        black_move_obj = None
         if (i + 1) < len(moves):
-            black_move = moves[i + 1]
-            current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(black_move))}"
-            temp_board_for_fen.push(black_move)
+            black_move_obj = moves[i + 1]
+            current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(black_move_obj))}"
+            temp_board_for_fen.push(black_move_obj)
             fens_in_pair.append(temp_board_for_fen.board_fen())
+            marked_squares_in_pair.append(
+                f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}")
             if (i + 1) in smart_moves:
                 is_smart_pair = True
         else:
-            # If only a white move in the last pair, repeat the board state after white's move
+            # If only a white move in the last pair, fill with the same board state and no second marked squares
             fens_in_pair.append(fens_in_pair[0])
+            marked_squares_in_pair.append("")  # No black move, so no squares to mark
 
         if is_smart_pair:
             move_pairs.append(current_move_pair_text)
-            fen_pairs.append(fens_in_pair)
+            fen_and_move_data_pairs.append((
+                fens_in_pair[0],
+                marked_squares_in_pair[0],
+                fens_in_pair[1],
+                marked_squares_in_pair[1]
+            ))
 
-    for i, (move_text, (fen1, fen2)) in enumerate(zip(move_pairs, fen_pairs)):
+    for i, (fen1, marked_sq1, fen2, marked_sq2) in enumerate(fen_and_move_data_pairs):
         if i > 0 and i % (MAX_BOARDS_PER_PAGE // 2) == 0:
             latex.append("\\newpage")
 
-        # NEW: Use minipage to keep the move text and boards together
         latex.append(r"\begin{minipage}{\linewidth}")
-
-        escaped_move_text = escape_latex_special_chars(move_text)
+        escaped_move_text = escape_latex_special_chars(move_pairs[i])  # Get the move text for the pair
         latex.append(f"\\textbf{{{escaped_move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
-        latex.append(f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}] &")
-        latex.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}] \\\\")
+
+        # White's move board (state AFTER White's move)
+        latex.append(
+            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
+        # Black's move board (state AFTER Black's move)
+        latex.append(
+            f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+
         latex.append("\\end{tabularx}")
         latex.append("\\vspace{2ex}")
-
-        latex.append(r"\end{minipage}")  # End minipage
+        latex.append(r"\end{minipage}")
 
     game_file = output_dir / f"game_{game_index:03}.tex"
     with open(game_file, "w") as f:
