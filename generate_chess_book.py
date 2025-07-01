@@ -6,7 +6,7 @@ from pathlib import Path
 from textwrap import dedent
 
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
-MAX_BOARDS_PER_PAGE = 6
+MAX_BOARDS_PER_PAGE = 6  # This is a guideline for layout, not a strict page break trigger now
 
 LATEX_HEADER = dedent(r'''
     \documentclass[10pt]{article}
@@ -152,69 +152,60 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
-    latex.append(
-        "\\newpage")
+    latex.append("\\newpage")  # Always start a new game on a new page
     latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
 
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
-    move_pairs = []
-    # This will store (move_text, fen_after_white_move, fen_after_black_move, marked_squares_white, marked_squares_black)
-    fen_and_move_data_pairs = []
+    move_pairs_to_display = []  # Stores (move_text, fen_after_white_move, marked_squares_white, fen_after_black_move, marked_squares_black)
 
     temp_board_for_fen = game.board()  # Use this board to track position and generate FENs
     for i in range(0, len(moves), 2):  # Iterate in steps of 2 (White and Black move pairs)
         current_move_pair_text = f"{(i // 2) + 1}."
-        fens_in_pair = []
-        marked_squares_in_pair = []
+
+        fen1, marked_sq1 = "", ""
+        fen2, marked_sq2 = "", ""
         is_smart_pair = False
 
         # White move
-        white_move_obj = None
         if i < len(moves):
             white_move_obj = moves[i]
             current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(white_move_obj))}"
             temp_board_for_fen.push(white_move_obj)
-            fens_in_pair.append(temp_board_for_fen.board_fen())
-            marked_squares_in_pair.append(
-                f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}")
+            fen1 = temp_board_for_fen.board_fen()
+            marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
             if i in smart_moves:
                 is_smart_pair = True
-        else:
-            continue  # Should not happen with valid PGN
 
         # Black move
-        black_move_obj = None
         if (i + 1) < len(moves):
             black_move_obj = moves[i + 1]
             current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(black_move_obj))}"
             temp_board_for_fen.push(black_move_obj)
-            fens_in_pair.append(temp_board_for_fen.board_fen())
-            marked_squares_in_pair.append(
-                f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}")
+            fen2 = temp_board_for_fen.board_fen()
+            marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
             if (i + 1) in smart_moves:
                 is_smart_pair = True
         else:
-            # If only a white move in the last pair, fill with the same board state and no second marked squares
-            fens_in_pair.append(fens_in_pair[0])
-            marked_squares_in_pair.append("")  # No black move, so no squares to mark
+            # If only a white move in the last pair, fill black's data with the same board state and no marked squares
+            fen2 = fen1  # Use the same FEN as white's board for the second slot if no black move
+            marked_sq2 = ""  # No black move, so no squares to mark
 
         if is_smart_pair:
-            move_pairs.append(current_move_pair_text)
-            fen_and_move_data_pairs.append((
-                fens_in_pair[0],
-                marked_squares_in_pair[0],
-                fens_in_pair[1],
-                marked_squares_in_pair[1]
+            move_pairs_to_display.append((
+                current_move_pair_text,
+                fen1, marked_sq1,
+                fen2, marked_sq2
             ))
 
-    for i, (fen1, marked_sq1, fen2, marked_sq2) in enumerate(fen_and_move_data_pairs):
-        if i > 0 and i % (MAX_BOARDS_PER_PAGE // 2) == 0:
-            latex.append("\\newpage")
+    # Now, iterate through the collected smart move pairs and generate LaTeX
+    for i, (move_text, fen1, marked_sq1, fen2, marked_sq2) in enumerate(move_pairs_to_display):
+        # Removed the explicit \newpage condition here.
+        # LaTeX will now handle page breaks between the minipage environments
+        # as it sees fit, maximizing space usage.
 
         latex.append(r"\begin{minipage}{\linewidth}")
-        escaped_move_text = escape_latex_special_chars(move_pairs[i])  # Get the move text for the pair
-        latex.append(f"\\textbf{{{escaped_move_text}}} \\\\[0.5ex]")
+        latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
 
         # White's move board (state AFTER White's move)
@@ -225,7 +216,7 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
             f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
 
         latex.append("\\end{tabularx}")
-        latex.append("\\vspace{2ex}")
+        latex.append("\\vspace{2ex}")  # Add some vertical space between board pairs
         latex.append(r"\end{minipage}")
 
     game_file = output_dir / f"game_{game_index:03}.tex"
