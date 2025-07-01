@@ -9,7 +9,7 @@ ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
 MAX_BOARDS_PER_PAGE = 6  # This is a guideline for layout, not a strict page break trigger now
 
 LATEX_HEADER = dedent(r'''
-    \documentclass[10pt]{article}
+    \documentclass[10pt]{book}
     \usepackage[margin=0.7in]{geometry}
     \usepackage{chessboard}
     \usepackage{multicol}
@@ -17,16 +17,24 @@ LATEX_HEADER = dedent(r'''
     \usepackage{titlesec}
     \usepackage{parskip}
     \usepackage{tabularx}
+    \usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
+    \usepackage{utfsym} % For \usym command to display Unicode symbols
     % Redefine tabularxcolumn for vertical centering within X columns
     \renewcommand{\tabularxcolumn}[1]{m{#1}}
     % Ensure section numbering for TOC. This will make section numbers visible in the document.
     \titleformat{\section}{\normalfont\Large\bfseries}{\thesection. }{0pt}{}
     \setlength{\parindent}{0pt}
     \pagestyle{fancy}
-    \fancyhf{}
-    \rhead{\thepage}
-    \usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
-    \usepackage{utfsym} % For \usym command to display Unicode symbols
+    \fancyhf{} % Clear all headers and footers first
+    % Define the footer for even pages (left-hand pages)
+    \fancyfoot[LE,RO]{\thepage} % Left Even, Right Odd
+    % Define the footer for odd pages (right-hand pages)
+    \fancyfoot[LO,CE]{} % Left Odd, Center Even
+    % Redefine the plain page style (used for chapter pages)
+    \fancypagestyle{plain}{
+        \fancyhf{} % Clear all header and footer fields
+        \fancyfoot[LE,RO]{\thepage} % Page numbers on the bottom left for even pages and bottom right for odd pages
+    }
 
     % IMPORTANT: You might need to install the 'utfsym' package if you don't have it.
     % Also, ensure you have a font installed on your system that contains Unicode chess symbols.
@@ -200,10 +208,6 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
 
     # Now, iterate through the collected smart move pairs and generate LaTeX
     for i, (move_text, fen1, marked_sq1, fen2, marked_sq2) in enumerate(move_pairs_to_display):
-        # Removed the explicit \newpage condition here.
-        # LaTeX will now handle page breaks between the minipage environments
-        # as it sees fit, maximizing space usage.
-
         latex.append(r"\begin{minipage}{\linewidth}")
         latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
