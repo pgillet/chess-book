@@ -22,7 +22,7 @@ LATEX_HEADER = dedent(r'''
     % Redefine tabularxcolumn for vertical centering within X columns
     \renewcommand{\tabularxcolumn}[1]{m{#1}}
     % Ensure section numbering for TOC. This will make section numbers visible in the document.
-    \titleformat{\section}{\normalfont\Large\bfseries}{\thesection. }{0pt}{}
+    \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
     \setlength{\parindent}{0pt}
     \pagestyle{fancy}
     \fancyhf{} % Clear all headers and footers first
