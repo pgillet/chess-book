@@ -1,12 +1,26 @@
-import chess.pgn
-import chess.engine
 import sys
-import os
 from pathlib import Path
 from textwrap import dedent
 
+import chess.engine
+import chess.pgn
+
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
 MAX_BOARDS_PER_PAGE = 6  # This is a guideline for layout, not a strict page break trigger now
+
+INLINE_CHESS_SYMBOL = {
+    'P': r'\WhitePawnOnWhite', 'N': r'\WhiteKnightOnWhite', 'B': r'\WhiteBishopOnWhite',
+    'R': r'\WhiteRookOnWhite', 'Q': r'\WhiteQueenOnWhite', 'K': r'\WhiteKingOnWhite',
+    'p': r'\BlackPawnOnWhite', 'n': r'\BlackKnightOnWhite', 'b': r'\BlackBishopOnWhite',
+    'r': r'\BlackRookOnWhite', 'q': r'\BlackQueenOnWhite', 'k': r'\BlackKingOnWhite',
+}
+
+UNICODE_CHESS_SYMBOL = {
+    'P': r'\usym{2659}', 'N': r'\usym{2658}', 'B': r'\usym{2657}',
+    'R': r'\usym{2656}', 'Q': r'\usym{2655}', 'K': r'\usym{2654}',
+    'p': r'\usym{265F}', 'n': r'\usym{265E}', 'b': r'\usym{265D}',
+    'r': r'\usym{265C}', 'q': r'\usym{265B}', 'k': r'\usym{265A}',
+}
 
 LATEX_HEADER = dedent(r'''
     \documentclass[10pt]{book}
@@ -17,8 +31,10 @@ LATEX_HEADER = dedent(r'''
     \usepackage{titlesec}
     \usepackage{parskip}
     \usepackage{tabularx}
-    \usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
-    \usepackage{utfsym} % For \usym command to display Unicode symbols
+    \usepackage{skak}
+    \usepackage{scalerel}
+    %\usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
+    % \usepackage{utfsym} % For \usym command to display Unicode symbols
     % Redefine tabularxcolumn for vertical centering within X columns
     \renewcommand{\tabularxcolumn}[1]{m{#1}}
     
@@ -101,6 +117,16 @@ def find_smart_moves(game):
     return smart_moves
 
 
+def _get_chess_figurine(piece_symbol, default_value="", inline=True):
+    if inline:
+        figurine_cmd = INLINE_CHESS_SYMBOL.get(piece_symbol, default_value)
+        figurine_cmd = "\scalerel*{" + figurine_cmd + "}{Xg}"
+    else:
+        figurine_cmd = UNICODE_CHESS_SYMBOL.get(piece_symbol, default_value)
+
+    return figurine_cmd
+
+
 def _generate_game_notation_latex(game, notation_type):
     notation_lines = []
     board = game.board()
@@ -117,25 +143,11 @@ def _generate_game_notation_latex(game, notation_type):
         san_move_raw = board.san(move)  # Get the raw SAN first
 
         if notation_type == "figurine":
-            # Map piece symbols to utfsym commands using their Unicode codepoints
-            white_utfsym_map = {
-                'P': r'\usym{2659}', 'N': r'\usym{2658}', 'B': r'\usym{2657}',
-                'R': r'\usym{2656}', 'Q': r'\usym{2655}', 'K': r'\usym{2654}',
-            }
-            black_utfsym_map = {
-                'p': r'\usym{265F}', 'n': r'\usym{265E}', 'b': r'\usym{265D}',
-                'r': r'\usym{265C}', 'q': r'\usym{265B}', 'k': r'\usym{265A}',
-            }
-
             moving_piece = board.piece_at(move.from_square)
 
             if moving_piece and moving_piece.piece_type != chess.PAWN:
                 piece_symbol = moving_piece.symbol()
-
-                if moving_piece.color == chess.WHITE:
-                    figurine_cmd = white_utfsym_map.get(piece_symbol, "")
-                else:  # chess.BLACK
-                    figurine_cmd = black_utfsym_map.get(piece_symbol, "")
+                figurine_cmd = _get_chess_figurine(piece_symbol)
 
                 if san_move_raw and san_move_raw[0].upper() in 'NBRQK':
                     move_str = figurine_cmd + " " + escape_latex_special_chars(san_move_raw[1:])
@@ -150,7 +162,7 @@ def _generate_game_notation_latex(game, notation_type):
         board.push(move)
         notation_output.append(move_str)
 
-    notation_lines.append("\\small\\noindent")
+    notation_lines.append("\\noindent")
     notation_lines.append(" ".join(notation_output))
     notation_lines.append("\\par\\vspace{1ex}")
 
