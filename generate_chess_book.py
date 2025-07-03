@@ -41,6 +41,8 @@ LATEX_HEADER = dedent(r'''
 
     % Remove numbering from sections
     \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
+    % Control spacing around sections: {command}{left_indent}{space_before}{space_after}
+    \titlespacing{\section}{0pt}{0pt}{0pt}
     \setlength{\parindent}{0pt}
 
     % Redefine \sectionmark to show only the section title without numbering
