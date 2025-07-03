@@ -37,18 +37,18 @@ LATEX_HEADER = dedent(r'''
     % \usepackage{utfsym} % For \usym command to display Unicode symbols
     % Redefine tabularxcolumn for vertical centering within X columns
     \renewcommand{\tabularxcolumn}[1]{m{#1}}
-    
+
     % Remove numbering from sections
     \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
     \setlength{\parindent}{0pt}
-    
+
     % Redefine \sectionmark to show only the section title without numbering
     \renewcommand{\sectionmark}[1]{\markright{#1}}
-    
+
     \pagestyle{fancy}
     \fancyhf{} % Clear all headers and footers first
     \renewcommand{\headrulewidth}{0pt} % Remove the horizontal header line
-    
+
     % Define the header for odd pages (right-hand pages)
     \fancyhead[RO]{\nouppercase{\rightmark}} % Right Odd: Show the current section title
 
@@ -56,7 +56,7 @@ LATEX_HEADER = dedent(r'''
     \fancyfoot[LE,RO]{\thepage} % Left Even, Right Odd
     % Define the footer for odd pages (right-hand pages)
     \fancyfoot[LO,CE]{} % Left Odd, Center Even
-    
+
     % Redefine the plain page style (used for chapter pages)
     \fancypagestyle{plain}{
         \fancyhf{} % Clear all header and footer fields
@@ -132,39 +132,59 @@ def _generate_game_notation_latex(game, notation_type):
     board = game.board()
     moves = list(game.mainline_moves())
 
-    notation_output = []
+    notation_lines.append("\\noindent")  # Start with no indent
 
-    for i, move in enumerate(moves):
+    for i in range(0, len(moves), 2):  # Iterate through moves in pairs (White's move index)
         move_number = (i // 2) + 1
-        if i % 2 == 0:  # White's move
-            notation_output.append(f"{move_number}.")
+        line_content = f"{move_number}."  # Start with move number
 
-        move_str = ""
-        san_move_raw = board.san(move)  # Get the raw SAN first
-
+        # White's move
+        white_move = moves[i]
+        white_san = board.san(white_move)
+        white_move_str = ""
         if notation_type == "figurine":
-            moving_piece = board.piece_at(move.from_square)
-
+            moving_piece = board.piece_at(white_move.from_square)
             if moving_piece and moving_piece.piece_type != chess.PAWN:
                 piece_symbol = moving_piece.symbol()
                 figurine_cmd = _get_chess_figurine(piece_symbol)
-
-                if san_move_raw and san_move_raw[0].upper() in 'NBRQK':
-                    move_str = figurine_cmd + " " + escape_latex_special_chars(san_move_raw[1:])
+                if white_san and white_san[0].upper() in 'NBRQK':
+                    white_move_str = figurine_cmd + " " + escape_latex_special_chars(white_san[1:])
                 else:
-                    move_str = escape_latex_special_chars(san_move_raw)
+                    white_move_str = escape_latex_special_chars(white_san)
             else:
-                move_str = escape_latex_special_chars(san_move_raw)
+                white_move_str = escape_latex_special_chars(white_san)
+        else:  # Algebraic
+            white_move_str = escape_latex_special_chars(white_san)
 
-        else:  # Algebraic notation (default)
-            move_str = escape_latex_special_chars(san_move_raw)
+        line_content += f" {white_move_str}"
+        board.push(white_move)  # Apply White's move to board
 
-        board.push(move)
-        notation_output.append(move_str)
+        # Black's move (if exists)
+        if (i + 1) < len(moves):
+            black_move = moves[i + 1]
+            black_san = board.san(black_move)
+            black_move_str = ""
+            if notation_type == "figurine":
+                moving_piece = board.piece_at(black_move.from_square)
+                if moving_piece and moving_piece.piece_type != chess.PAWN:
+                    piece_symbol = moving_piece.symbol()
+                    figurine_cmd = _get_chess_figurine(piece_symbol)
+                    if black_san and black_san[0].upper() in 'NBRQK':
+                        black_move_str = figurine_cmd + " " + escape_latex_special_chars(black_san[1:])
+                    else:
+                        black_move_str = escape_latex_special_chars(black_san)
+                else:
+                    black_move_str = escape_latex_special_chars(black_san)
+            else:  # Algebraic
+                black_move_str = escape_latex_special_chars(black_san)
 
-    notation_lines.append("\\noindent")
-    notation_lines.append(" ".join(notation_output))
-    notation_lines.append("\\par\\vspace{1ex}")
+            line_content += f" {black_move_str}"
+            board.push(black_move)  # Apply Black's move to board
+
+        notation_lines.append(f"{line_content}\\\\")  # Append the pair + explicit newline
+
+    # Add final vertical space.
+    notation_lines.append("\\vspace{1ex}")
 
     return notation_lines
 
