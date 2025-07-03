@@ -192,7 +192,7 @@ def _generate_game_notation_latex(game, notation_type):
         notation_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
 
     notation_lines.append("\\end{tabularx}")  # End the tabularx environment
-    notation_lines.append("\\vspace{1ex}")
+    notation_lines.append("\\par\\vspace{\\baselineskip}")  # Changed to ensure one line of space
 
     return notation_lines
 
@@ -214,6 +214,7 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
 
     latex.append("\\newpage")  # Always start a new game on a new page
     latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
+    latex.append("\\par\\vspace{\\baselineskip}")  # Added to ensure one line of space before notation
 
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
