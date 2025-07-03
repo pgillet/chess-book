@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from textwrap import dedent
+import argparse
 
 import chess.engine
 import chess.pgn
@@ -306,18 +307,27 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine"):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3 or len(sys.argv) > 4:
-        print("Usage: python generate_chess_book.py games.pgn output_dir [notation_type]")
-        print("  notation_type: 'algebraic' or 'figurine' (default)")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Generate a chess book from PGN files."
+    )
+    parser.add_argument(
+        "pgn_file",
+        type=str,
+        help="Path to the PGN file containing chess games."
+    )
+    parser.add_argument(
+        "output_dir",
+        type=str,
+        help="Directory where the LaTeX files and the final PDF will be generated."
+    )
+    parser.add_argument(
+        "--notation_type",
+        type=str,
+        choices=["algebraic", "figurine"],
+        default="figurine",
+        help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine')."
+    )
 
-    pgn_file = sys.argv[1]
-    output_dir = sys.argv[2]
-    notation = "figurine"  # Default
-    if len(sys.argv) == 4:
-        notation = sys.argv[3].lower()
-        if notation not in ["algebraic", "figurine"]:
-            print("Error: notation_type must be 'algebraic' or 'figurine'.")
-            sys.exit(1)
+    args = parser.parse_args()
 
-    generate_chess_book(pgn_file, output_dir, notation)
+    generate_chess_book(args.pgn_file, args.output_dir, args.notation_type)
