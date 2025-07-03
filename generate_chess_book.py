@@ -268,6 +268,7 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine"):
     tex_master = [LATEX_HEADER]
     for idx, game in enumerate(games):
         try:
+            print(f"Export game {idx + 1}/{len(games)} to LaTeX")
             smart_moves = find_smart_moves(game)
             export_game_to_latex(game, idx + 1, output_dir, smart_moves, notation_type)
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
