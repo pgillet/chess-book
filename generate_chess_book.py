@@ -132,58 +132,63 @@ def _generate_game_notation_latex(game, notation_type):
     board = game.board()
     moves = list(game.mainline_moves())
 
-    notation_lines.append("\\noindent")  # Start with no indent
+    notation_lines.append("\\noindent")
+    # Use tabularx for aligned columns:
+    # l: left-aligned column for move number
+    # l: left-aligned column for White's move
+    # l: left-aligned column for Black's move
+    notation_lines.append("\\begin{tabularx}{\\linewidth}{l l l}")
 
     for i in range(0, len(moves), 2):  # Iterate through moves in pairs (White's move index)
         move_number = (i // 2) + 1
-        line_content = f"{move_number}."  # Start with move number
 
         # White's move
+        white_move_str_latex = ""
         white_move = moves[i]
         white_san = board.san(white_move)
-        white_move_str = ""
+
         if notation_type == "figurine":
             moving_piece = board.piece_at(white_move.from_square)
             if moving_piece and moving_piece.piece_type != chess.PAWN:
                 piece_symbol = moving_piece.symbol()
                 figurine_cmd = _get_chess_figurine(piece_symbol)
                 if white_san and white_san[0].upper() in 'NBRQK':
-                    white_move_str = figurine_cmd + " " + escape_latex_special_chars(white_san[1:])
+                    white_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(white_san[1:])
                 else:
-                    white_move_str = escape_latex_special_chars(white_san)
+                    white_move_str_latex = escape_latex_special_chars(white_san)
             else:
-                white_move_str = escape_latex_special_chars(white_san)
+                white_move_str_latex = escape_latex_special_chars(white_san)
         else:  # Algebraic
-            white_move_str = escape_latex_special_chars(white_san)
+            white_move_str_latex = escape_latex_special_chars(white_san)
 
-        line_content += f" {white_move_str}"
         board.push(white_move)  # Apply White's move to board
 
         # Black's move (if exists)
+        black_move_str_latex = ""
         if (i + 1) < len(moves):
             black_move = moves[i + 1]
             black_san = board.san(black_move)
-            black_move_str = ""
+
             if notation_type == "figurine":
                 moving_piece = board.piece_at(black_move.from_square)
                 if moving_piece and moving_piece.piece_type != chess.PAWN:
                     piece_symbol = moving_piece.symbol()
                     figurine_cmd = _get_chess_figurine(piece_symbol)
                     if black_san and black_san[0].upper() in 'NBRQK':
-                        black_move_str = figurine_cmd + " " + escape_latex_special_chars(black_san[1:])
+                        black_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(black_san[1:])
                     else:
-                        black_move_str = escape_latex_special_chars(black_san)
+                        black_move_str_latex = escape_latex_special_chars(black_san)
                 else:
-                    black_move_str = escape_latex_special_chars(black_san)
+                    black_move_str_latex = escape_latex_special_chars(black_san)
             else:  # Algebraic
-                black_move_str = escape_latex_special_chars(black_san)
+                black_move_str_latex = escape_latex_special_chars(black_san)
 
-            line_content += f" {black_move_str}"
             board.push(black_move)  # Apply Black's move to board
 
-        notation_lines.append(f"{line_content}\\\\")  # Append the pair + explicit newline
+        # Construct the LaTeX row for this move pair using & for column separation
+        notation_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
 
-    # Add final vertical space.
+    notation_lines.append("\\end{tabularx}")  # End the tabularx environment
     notation_lines.append("\\vspace{1ex}")
 
     return notation_lines
