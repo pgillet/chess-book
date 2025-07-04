@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 from textwrap import dedent
 import argparse
@@ -198,7 +197,7 @@ def _generate_game_notation_latex(game, notation_type):
 
 
 def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=False,
-                         show_all_boards=False):
+                         display_boards=False, board_scope="smart"):
     latex = []
     board = game.board()
     moves = list(game.mainline_moves())
@@ -219,86 +218,87 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
 
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
-    # Stores (move_text, fen_after_white_move, marked_squares_white, fen_after_black_move, marked_squares_black, is_this_pair_smart)
-    all_calculated_move_pairs = []
+    if display_boards:  # New condition to display boards or not
+        # Stores (move_text, fen_after_white_move, marked_squares_white, fen_after_black_move, marked_squares_black, is_this_pair_smart)
+        all_calculated_move_pairs = []
 
-    temp_board_for_fen = game.board()
-    for i in range(0, len(moves), 2):  # Iterate in steps of 2 (White and Black move pairs)
-        current_move_pair_text = f"{(i // 2) + 1}."
+        temp_board_for_fen = game.board()
+        for i in range(0, len(moves), 2):  # Iterate in steps of 2 (White and Black move pairs)
+            current_move_pair_text = f"{(i // 2) + 1}."
 
-        fen1, marked_sq1 = "", ""
-        fen2, marked_sq2 = "", ""
-        is_current_pair_smart = False
+            fen1, marked_sq1 = "", ""
+            fen2, marked_sq2 = "", ""
+            is_current_pair_smart = False
 
-        # White move
-        if i < len(moves):
-            white_move_obj = moves[i]
-            current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(white_move_obj))}"
-            temp_board_for_fen.push(white_move_obj)
-            fen1 = temp_board_for_fen.board_fen()
-            marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
-            if i in smart_moves:
-                is_current_pair_smart = True
+            # White move
+            if i < len(moves):
+                white_move_obj = moves[i]
+                current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(white_move_obj))}"
+                temp_board_for_fen.push(white_move_obj)
+                fen1 = temp_board_for_fen.board_fen()
+                marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
+                if i in smart_moves:
+                    is_current_pair_smart = True
 
-        # Black move
-        if (i + 1) < len(moves):
-            black_move_obj = moves[i + 1]
-            current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(black_move_obj))}"
-            temp_board_for_fen.push(black_move_obj)
-            fen2 = temp_board_for_fen.board_fen()
-            marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
-            if (i + 1) in smart_moves:
-                is_current_pair_smart = True
-        else:
-            fen2 = fen1  # If only a white move in the last pair, use the same FEN as white's board for the second slot
-            marked_sq2 = ""  # No black move, so no squares to mark
+            # Black move
+            if (i + 1) < len(moves):
+                black_move_obj = moves[i + 1]
+                current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(black_move_obj))}"
+                temp_board_for_fen.push(black_move_obj)
+                fen2 = temp_board_for_fen.board_fen()
+                marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
+                if (i + 1) in smart_moves:
+                    is_current_pair_smart = True
+            else:
+                fen2 = fen1  # If only a white move in the last pair, use the same FEN as white's board for the second slot
+                marked_sq2 = ""  # No black move, so no squares to mark
 
-        all_calculated_move_pairs.append((
-            current_move_pair_text,
-            fen1, marked_sq1,
-            fen2, marked_sq2,
-            is_current_pair_smart  # Store the smart status for this pair
-        ))
+            all_calculated_move_pairs.append((
+                current_move_pair_text,
+                fen1, marked_sq1,
+                fen2, marked_sq2,
+                is_current_pair_smart  # Store the smart status for this pair
+            ))
 
-    # Conditional display of boards
-    move_pairs_to_display = []
-    if show_all_boards:
-        # If showing all boards, include everything
-        move_pairs_to_display = all_calculated_move_pairs
-    else:
-        # Otherwise, filter for only smart moves
-        for pair_data in all_calculated_move_pairs:
-            if pair_data[5]:  # Check the is_this_pair_smart flag (index 5)
-                move_pairs_to_display.append(pair_data)
+        # Conditional display of boards based on board_scope
+        move_pairs_to_display = []
+        if board_scope == "all":
+            # If scope is 'all', include everything
+            move_pairs_to_display = all_calculated_move_pairs
+        else:  # board_scope == "smart"
+            # Otherwise, filter for only smart moves
+            for pair_data in all_calculated_move_pairs:
+                if pair_data[5]:  # Check the is_this_pair_smart flag (index 5)
+                    move_pairs_to_display.append(pair_data)
 
-    # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
-    for i, (move_text, fen1, marked_sq1, fen2, marked_sq2, _) in enumerate(
-            move_pairs_to_display):  # Ignore the smart status here
-        latex.append(r"\begin{minipage}{\linewidth}")
-        latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
-        latex.append("\\begin{tabularx}{\\linewidth}{X X}")
+        # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
+        for i, (move_text, fen1, marked_sq1, fen2, marked_sq2, _) in enumerate(
+                move_pairs_to_display):  # Ignore the smart status here
+            latex.append(r"\begin{minipage}{\linewidth}")
+            latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
+            latex.append("\\begin{tabularx}{\\linewidth}{X X}")
 
-        # White's move board (state AFTER White's move)
-        latex.append(
-            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
-
-        # Black's move board (state AFTER Black's move) - ONLY display if black move exists
-        if marked_sq2:  # This implicitly checks if a black move was made and had squares marked
+            # White's move board (state AFTER White's move)
             latex.append(
-                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
-        else:
-            latex.append("\\\\")  # Just close the row if no black board
+                f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
 
-        latex.append("\\end{tabularx}")
-        latex.append("\\vspace{2ex}")  # Add some vertical space between board pairs
-        latex.append(r"\end{minipage}")
+            # Black's move board (state AFTER Black's move) - ONLY display if black move exists
+            if marked_sq2:  # This implicitly checks if a black move was made and had squares marked
+                latex.append(
+                    f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+            else:
+                latex.append("\\\\")  # Just close the row if no black board
+
+            latex.append("\\end{tabularx}")
+            latex.append("\\vspace{2ex}")  # Add some vertical space between board pairs
+            latex.append(r"\end{minipage}")
 
     game_file = output_dir / f"game_{game_index:03}.tex"
     with open(game_file, "w") as f:
         f.write("\n".join(latex))
 
 
-def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", show_all_boards=False):
+def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", display_boards=False, board_scope="smart"):
     pgn_path = Path(pgn_path)
     output_dir = Path(output_dir_path)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -316,7 +316,8 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", sho
         try:
             print(f"Export game {idx + 1}/{len(games)} to LaTeX")
             smart_moves = find_smart_moves(game)
-            export_game_to_latex(game, idx + 1, output_dir, smart_moves, notation_type, show_all_boards=show_all_boards)
+            export_game_to_latex(game, idx + 1, output_dir, smart_moves, notation_type, display_boards=display_boards,
+                                 board_scope=board_scope)
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
             print(f"⚠️ Skipping corrupted game {idx + 1}: {e}")
@@ -348,11 +349,19 @@ if __name__ == "__main__":
         help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine')."
     )
     parser.add_argument(
-        "--show_all_boards",
+        "--display_boards",
         action="store_true",
-        help="Display chessboards for ALL moves (including non-smart moves). By default, only smart moves are shown."
+        help="Enable display of chessboards. If off (default), only notation is displayed."
+    )
+    parser.add_argument(
+        "--board_scope",
+        type=str,
+        choices=["all", "smart"],
+        default="smart",
+        help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (default: 'smart')."
     )
 
     args = parser.parse_args()
 
-    generate_chess_book(args.pgn_file, args.output_dir, args.notation_type, show_all_boards=args.show_all_boards)
+    generate_chess_book(args.pgn_file, args.output_dir, args.notation_type, display_boards=args.display_boards,
+                        board_scope=args.board_scope)
