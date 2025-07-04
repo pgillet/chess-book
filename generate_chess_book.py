@@ -197,7 +197,8 @@ def _generate_game_notation_latex(game, notation_type):
     return notation_lines
 
 
-def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=False, show_all_boards=False):
+def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=False,
+                         show_all_boards=False):
     latex = []
     board = game.board()
     moves = list(game.mainline_moves())
@@ -256,7 +257,7 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
             current_move_pair_text,
             fen1, marked_sq1,
             fen2, marked_sq2,
-            is_current_pair_smart # Store the smart status for this pair
+            is_current_pair_smart  # Store the smart status for this pair
         ))
 
     # Conditional display of boards
@@ -267,11 +268,12 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     else:
         # Otherwise, filter for only smart moves
         for pair_data in all_calculated_move_pairs:
-            if pair_data[5]: # Check the is_this_pair_smart flag (index 5)
+            if pair_data[5]:  # Check the is_this_pair_smart flag (index 5)
                 move_pairs_to_display.append(pair_data)
 
     # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
-    for i, (move_text, fen1, marked_sq1, fen2, marked_sq2, _) in enumerate(move_pairs_to_display): # Ignore the smart status here
+    for i, (move_text, fen1, marked_sq1, fen2, marked_sq2, _) in enumerate(
+            move_pairs_to_display):  # Ignore the smart status here
         latex.append(r"\begin{minipage}{\linewidth}")
         latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
         latex.append("\\begin{tabularx}{\\linewidth}{X X}")
@@ -279,9 +281,13 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
         # White's move board (state AFTER White's move)
         latex.append(
             f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
-        # Black's move board (state AFTER Black's move)
-        latex.append(
-            f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+
+        # Black's move board (state AFTER Black's move) - ONLY display if black move exists
+        if marked_sq2:  # This implicitly checks if a black move was made and had squares marked
+            latex.append(
+                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+        else:
+            latex.append("\\\\")  # Just close the row if no black board
 
         latex.append("\\end{tabularx}")
         latex.append("\\vspace{2ex}")  # Add some vertical space between board pairs
