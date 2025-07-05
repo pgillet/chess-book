@@ -99,24 +99,87 @@ def escape_latex_special_chars(text):
     return text
 
 
-def is_tactical(board, move):
-    return board.is_capture(move) or board.gives_check(move)
+def get_eval_string(score):
+    """Formats a Stockfish score object into a human-readable string."""
+    if score is None:
+        return "N/A"
+
+    # Ensure we are always evaluating from White's perspective for display consistency
+    white_pov_score = score.white()
+
+    if white_pov_score.is_mate():
+        # If it's a mate, get the mate value from the white_pov_score object
+        # Attempt to call mate() as a method, in case it's implemented that way in the user's environment
+        mate_value = white_pov_score.mate()
+        # Display M0 for mate in 0 (e.g., stalemate or immediate mate from prev move)
+        # Use abs() to ensure positive mate distance as per convention.
+        return f"M{abs(mate_value)}" if mate_value != 0 else "0"
+
+    # If not mate, convert centipawns to pawns with two decimal places and a sign
+    return f"{white_pov_score.cp / 100.0:+.2f}"
 
 
-def find_smart_moves(game):
-    smart_moves = set()
-    try:
-        with chess.engine.SimpleEngine.popen_uci(ENGINE_PATH) as engine:
-            board = game.board()
-            for i, move in enumerate(game.mainline_moves()):
-                info = engine.analyse(board, chess.engine.Limit(depth=15))
-                best = info["pv"][0]
-                if best != move:
-                    smart_moves.add(i)
-                board.push(move)
-    except Exception as e:
-        print(f"⚠️ Engine analysis failed: {e}")
-    return smart_moves
+def classify_move_loss(cpl):
+    """Classifies a move based on Centipawn Loss (CPL)."""
+    if cpl >= 200:
+        return "\\textbf{Blunder}"
+    elif cpl >= 100:
+        return "\\textbf{Mistake}"
+    elif cpl >= 50:
+        return "Inaccuracy"
+    return "Good Move"
+
+
+def analyze_game_with_stockfish(game, engine):
+    """
+    Analyzes each half-move of a game using Stockfish to get evaluations and CPL.
+    Returns a list of dictionaries, where each dict contains analysis data for a half-move.
+    """
+    analysis_results = []  # Stores data for each half-move
+    board = game.board()
+    moves = list(game.mainline_moves())
+
+    for i, move in enumerate(moves):
+        # Analyze the position *before* the current move
+        # This gives us the ideal evaluation if the best move was played from this position.
+        analysis_before_move = engine.analyse(board, chess.engine.Limit(depth=15))
+
+        best_move_from_pos = analysis_before_move["pv"][0] if analysis_before_move["pv"] else None
+        ideal_eval_before_move = analysis_before_move[
+            "score"]  # Evaluation of current position (assuming optimal play from here)
+
+        # Apply the played move to a temporary board to get its outcome evaluation
+        temp_board_after_played_move = board.copy()
+        temp_board_after_played_move.push(move)
+        analysis_after_played_move = engine.analyse(temp_board_after_played_move, chess.engine.Limit(depth=15))
+        eval_after_played_move = analysis_after_played_move["score"]
+
+        # Calculate centipawn loss (CPL)
+        cpl = 0
+        if not ideal_eval_before_move.is_mate() and not eval_after_played_move.is_mate():
+            # Get evaluations consistently from White's perspective
+            ideal_cp_white_pov = ideal_eval_before_move.white().cp
+            played_cp_white_pov = eval_after_played_move.white().cp
+
+            # CPL is how much the evaluation drops for the player whose turn it was
+            if board.turn == chess.WHITE:
+                cpl = max(0, ideal_cp_white_pov - played_cp_white_pov)
+            else:  # Black's turn (higher score for White means worse for Black)
+                cpl = max(0, played_cp_white_pov - ideal_cp_white_pov)
+
+        # Store results for the current move
+        analysis_results.append({
+            'move_index': i,  # 0-indexed half-move number
+            'played_move': move,
+            'is_white_move': board.turn == chess.WHITE,
+            'engine_eval_before_played_move': ideal_eval_before_move,  # Eval of position before the played move
+            'engine_best_move_from_pos': best_move_from_pos,
+            'eval_after_played_move': eval_after_played_move,  # Eval of position after the played move
+            'cpl_for_move': cpl,
+        })
+        board.push(move)  # Advance board for next iteration
+
+    return analysis_results
 
 
 def _get_chess_figurine(piece_symbol, default_value="", inline=True):
@@ -196,11 +259,9 @@ def _generate_game_notation_latex(game, notation_type):
     return notation_lines
 
 
-def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_type, show_mover=False,
+def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
                          display_boards=False, board_scope="smart"):
     latex = []
-    board = game.board()
-    moves = list(game.mainline_moves())
 
     # Game metadata
     header = game.headers.get("Event", f"Game {game_index}")
@@ -216,64 +277,114 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
     latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
     latex.append("\\par\\vspace{\\baselineskip}")  # Added to ensure one line of space before notation
 
+    # --- Game Notation ---
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
+    # --- Game Statistics Section (after notation) ---
+    if analysis_data:  # Only show analysis summary if analysis data exists
+        latex.append(r"\subsection*{Analysis Summary}")
+
+        total_moves_analyzed = len(analysis_data)
+        white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
+        black_moves_count = total_moves_analyzed - white_moves_count
+
+        white_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if d['is_white_move'])
+        black_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if not d['is_white_move'])
+
+        white_avg_cpl = (white_total_cpl / white_moves_count) if white_moves_count > 0 else 0
+        black_avg_cpl = (black_total_cpl / black_moves_count) if black_moves_count > 0 else 0
+
+        white_blunders = sum(1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 200)
+        black_blunders = sum(1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 200)
+        white_mistakes = sum(
+            1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
+        black_mistakes = sum(
+            1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
+        white_inaccuracies = sum(
+            1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
+        black_inaccuracies = sum(
+            1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
+
+        latex.append(dedent(f"""
+            \\begin{{itemize}}
+                \\item \\textbf{{Overall Accuracy:}}
+                \\begin{{itemize}}
+                    \\item White Average CPL: {white_avg_cpl:.2f}
+                    \\item Black Average CPL: {black_avg_cpl:.2f}
+                \\end{{itemize}}
+                \\item \\textbf{{Mistakes \\& Blunders:}}
+                \\begin{{itemize}}
+                    \\item White: {white_blunders} Blunders, {white_mistakes} Mistakes, {white_inaccuracies} Inaccuracies
+                    \\item Black: {black_blunders} Blunders, {black_mistakes} Mistakes, {black_inaccuracies} Inaccuracies
+                \\end{{itemize}}
+            \\end{{itemize}}
+            \\par\\vspace{{\\baselineskip}}
+        """))
+
     if display_boards:  # New condition to display boards or not
-        # Stores (move_text, fen_after_white_move, marked_squares_white, fen_after_black_move, marked_squares_black, is_this_pair_smart)
+        board_for_display = game.board()  # Re-initialize board for displaying positions
+        moves_list = list(game.mainline_moves())
+
+        # Stores (move_text, fen_after_white_move, marked_squares_white, white_analysis_data,
+        #          fen_after_black_move, marked_squares_black, black_analysis_data,
+        #          has_cpl_in_pair)
         all_calculated_move_pairs = []
 
-        temp_board_for_fen = game.board()
-        for i in range(0, len(moves), 2):  # Iterate in steps of 2 (White and Black move pairs)
+        for i in range(0, len(moves_list), 2):  # Iterate in steps of 2 (White and Black move pairs)
             current_move_pair_text = f"{(i // 2) + 1}."
 
             fen1, marked_sq1 = "", ""
             fen2, marked_sq2 = "", ""
-            is_current_pair_smart = False
 
-            # White move
-            if i < len(moves):
-                white_move_obj = moves[i]
-                current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(white_move_obj))}"
-                temp_board_for_fen.push(white_move_obj)
-                fen1 = temp_board_for_fen.board_fen()
+            white_move_obj = moves_list[i] if i < len(moves_list) else None
+            black_move_obj = moves_list[i + 1] if (i + 1) < len(moves_list) else None
+
+            white_analysis_data = analysis_data[i] if white_move_obj and i < len(analysis_data) else None
+            black_analysis_data = analysis_data[i + 1] if black_move_obj and (i + 1) < len(analysis_data) else None
+
+            has_cpl_in_pair = False
+            if white_analysis_data and white_analysis_data['cpl_for_move'] > 0:
+                has_cpl_in_pair = True
+            if black_analysis_data and black_analysis_data['cpl_for_move'] > 0:
+                has_cpl_in_pair = True
+
+            # White move processing
+            if white_move_obj:
+                current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
                 marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
-                if i in smart_moves:
-                    is_current_pair_smart = True
+                board_for_display.push(white_move_obj)
+                fen1 = board_for_display.board_fen()
 
-            # Black move
-            if (i + 1) < len(moves):
-                black_move_obj = moves[i + 1]
-                current_move_pair_text += f" {escape_latex_special_chars(temp_board_for_fen.san(black_move_obj))}"
-                temp_board_for_fen.push(black_move_obj)
-                fen2 = temp_board_for_fen.board_fen()
+            # Black move processing
+            if black_move_obj:
+                current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
                 marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
-                if (i + 1) in smart_moves:
-                    is_current_pair_smart = True
+                board_for_display.push(black_move_obj)
+                fen2 = board_for_display.board_fen()
             else:
-                fen2 = fen1  # If only a white move in the last pair, use the same FEN as white's board for the second slot
-                marked_sq2 = ""  # No black move, so no squares to mark
+                # If no black move, the second board should show the position after white's move
+                fen2 = fen1
+                marked_sq2 = ""  # No black move to mark squares for
 
             all_calculated_move_pairs.append((
                 current_move_pair_text,
-                fen1, marked_sq1,
-                fen2, marked_sq2,
-                is_current_pair_smart  # Store the smart status for this pair
+                fen1, marked_sq1, white_analysis_data,
+                fen2, marked_sq2, black_analysis_data,
+                has_cpl_in_pair
             ))
 
-        # Conditional display of boards based on board_scope
         move_pairs_to_display = []
         if board_scope == "all":
-            # If scope is 'all', include everything
             move_pairs_to_display = all_calculated_move_pairs
         else:  # board_scope == "smart"
-            # Otherwise, filter for only smart moves
+            # In 'smart' mode, we only display pairs where at least one move had CPL (i.e., was not perfect)
             for pair_data in all_calculated_move_pairs:
-                if pair_data[5]:  # Check the is_this_pair_smart flag (index 5)
+                if pair_data[7]:  # Check has_cpl_in_pair flag
                     move_pairs_to_display.append(pair_data)
 
         # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
-        for i, (move_text, fen1, marked_sq1, fen2, marked_sq2, _) in enumerate(
-                move_pairs_to_display):  # Ignore the smart status here
+        for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
+                move_pairs_to_display):
             latex.append(r"\begin{minipage}{\linewidth}")
             latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
             latex.append("\\begin{tabularx}{\\linewidth}{X X}")
@@ -283,13 +394,44 @@ def export_game_to_latex(game, game_index, output_dir, smart_moves, notation_typ
                 f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
 
             # Black's move board (state AFTER Black's move) - ONLY display if black move exists
-            if marked_sq2:  # This implicitly checks if a black move was made and had squares marked
+            if marked_sq2:
                 latex.append(
                     f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
             else:
                 latex.append("\\\\")  # Just close the row if no black board
 
             latex.append("\\end{tabularx}")
+
+            # --- Add Move-by-Move Analysis below boards ---
+            if white_analysis or black_analysis:  # Only add this section if there's analysis data
+                latex.append("\\begin{tabularx}{\\linewidth}{X X}")
+
+                # First line: Eval scores
+                white_eval_line = f"\\textit{{Eval: {get_eval_string(white_analysis['eval_after_played_move'])}}}" if white_analysis else ""
+                black_eval_line = f"\\textit{{Eval: {get_eval_string(black_analysis['eval_after_played_move'])}}}" if black_analysis else ""
+                latex.append(f"{white_eval_line} & {black_eval_line} \\\\")
+
+                # Second line: Best move / CPL details
+                white_details_line = ""
+                if white_analysis:
+                    if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
+                    white_analysis['engine_eval_before_played_move'].is_mate():
+                        white_details_line = f"\\textit{{Best: {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {white_analysis['cpl_for_move']}}}cp, {classify_move_loss(white_analysis['cpl_for_move'])}"
+                    else:
+                        white_details_line = "\\textit{Best Move}"
+
+                black_details_line = ""
+                if black_analysis:
+                    if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
+                    black_analysis['engine_eval_before_played_move'].is_mate():
+                        black_details_line = f"\\textit{{Best: {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {black_analysis['cpl_for_move']}}}cp, {classify_move_loss(black_analysis['cpl_for_move'])}"
+                    else:
+                        black_details_line = "\\textit{Best Move}"
+
+                latex.append(f"{white_details_line} & {black_details_line} \\\\")
+
+                latex.append("\\end{tabularx}")
+
             latex.append("\\vspace{2ex}")  # Add some vertical space between board pairs
             latex.append(r"\end{minipage}")
 
@@ -312,19 +454,41 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", dis
             games.append(game)
 
     tex_master = [LATEX_HEADER]
+
+    # Initialize engine once for all games
+    engine = None
+    try:
+        engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
+        # Configure engine for multi-threading and hash table size for better performance
+        engine.configure({"Threads": 2, "Hash": 128})
+    except Exception as e:
+        print(
+            f"Error starting Stockfish engine: {e}. Please ensure '{ENGINE_PATH}' is correct and Stockfish is installed.")
+        print("Analysis features (CPL, blunders, best moves) will be disabled for all games.")
+        engine = None
+
     for idx, game in enumerate(games):
         try:
-            print(f"Export game {idx + 1}/{len(games)} to LaTeX")
-            smart_moves = find_smart_moves(game)
-            export_game_to_latex(game, idx + 1, output_dir, smart_moves, notation_type, display_boards=display_boards,
+            print(f"Exporting game {idx + 1}/{len(games)} to LaTeX...")
+
+            analysis_data = []
+            if engine:
+                analysis_data = analyze_game_with_stockfish(game, engine)
+            else:
+                print(f"Skipping Stockfish analysis for game {idx + 1} due to engine error.")
+
+            export_game_to_latex(game, idx + 1, output_dir, analysis_data, notation_type, display_boards=display_boards,
                                  board_scope=board_scope)
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
-            print(f"⚠️ Skipping corrupted game {idx + 1}: {e}")
+            print(f"⚠️ Skipping game {idx + 1} due to an error during processing: {e}")
 
     tex_master.append(LATEX_FOOTER)
     with open(output_dir / "chess_book.tex", "w") as f:
         f.write("\n".join(tex_master))
+
+    if engine:
+        engine.quit()  # Close engine when done with all games
 
 
 if __name__ == "__main__":
@@ -358,7 +522,7 @@ if __name__ == "__main__":
         type=str,
         choices=["all", "smart"],
         default="smart",
-        help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (default: 'smart')."
+        help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart')."
     )
 
     args = parser.parse_args()
