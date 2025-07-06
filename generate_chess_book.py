@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from textwrap import dedent
 import argparse
@@ -259,11 +260,11 @@ def _generate_game_notation_latex(game, notation_type):
     return notation_lines
 
 
-def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
-                         display_boards=False, board_scope="smart"):
-    latex = []
-
-    # Game metadata
+def _generate_game_metadata_latex(game, game_index):
+    """
+    Generates the LaTeX for the game's metadata section (title, players, result).
+    """
+    latex_lines = []
     header = game.headers.get("Event", f"Game {game_index}")
     white = game.headers.get("White", "White")
     black = game.headers.get("Black", "Black")
@@ -273,167 +274,204 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
-    latex.append("\\newpage")  # Always start a new game on a new page
-    latex.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
-    latex.append("\\par\\vspace{\\baselineskip}")  # Added to ensure one line of space before notation
+    latex_lines.append("\\newpage")  # Always start a new game on a new page
+    latex_lines.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
+    latex_lines.append("\\par\\vspace{\\baselineskip}")  # Added to ensure one line of space before notation
+    return latex_lines
 
-    # --- Game Notation ---
+
+def _generate_analysis_summary_latex(analysis_data):
+    """
+    Generates the LaTeX for the analysis summary section (CPL, blunders, etc.).
+    """
+    latex_lines = []
+    if not analysis_data:
+        return latex_lines  # Return empty if no analysis data
+
+    latex_lines.append(r"\subsection*{Analysis Summary}")
+
+    total_moves_analyzed = len(analysis_data)
+    white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
+    black_moves_count = total_moves_analyzed - white_moves_count
+
+    white_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if d['is_white_move'])
+    black_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if not d['is_white_move'])
+
+    white_avg_cpl = (white_total_cpl / white_moves_count) if white_moves_count > 0 else 0
+    black_avg_cpl = (black_total_cpl / black_moves_count) if black_moves_count > 0 else 0
+
+    white_blunders = sum(1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 200)
+    black_blunders = sum(1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 200)
+    white_mistakes = sum(
+        1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
+    black_mistakes = sum(
+        1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
+    white_inaccuracies = sum(
+        1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
+    black_inaccuracies = sum(
+        1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
+
+    latex_lines.append(dedent(f"""
+        \\begin{{itemize}}
+            \\item \\textbf{{Overall Accuracy:}}
+            \\begin{{itemize}}
+                \\item White Average CPL: {white_avg_cpl:.2f}
+                \\item Black Average CPL: {black_avg_cpl:.2f}
+            \\end{{itemize}}
+            \\item \\textbf{{Mistakes \\& Blunders:}}
+            \\begin{{itemize}}
+                \\item White: {white_blunders} Blunders, {white_mistakes} Mistakes, {white_inaccuracies} Inaccuracies
+                \\item Black: {black_blunders} Blunders, {black_mistakes} Mistakes, {black_inaccuracies} Inaccuracies
+            \\end{{itemize}}
+        \\end{{itemize}}
+        \\par\\vspace{{\\baselineskip}}
+    """))
+    return latex_lines
+
+
+def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope):
+    """
+    Generates the LaTeX for move-by-move board displays and their analysis.
+    """
+    latex_lines = []
+    if not analysis_data:
+        return latex_lines  # Return empty if no analysis data
+
+    board_for_display = game.board()  # Re-initialize board for displaying positions
+    moves_list = list(game.mainline_moves())
+
+    # Stores (move_text, fen_after_white_move, marked_squares_white, white_analysis_data,
+    #          fen_after_black_move, marked_squares_black, black_analysis_data,
+    #          has_cpl_in_pair)
+    all_calculated_move_pairs = []
+
+    for i in range(0, len(moves_list), 2):  # Iterate in steps of 2 (White and Black move pairs)
+        current_move_pair_text = f"{(i // 2) + 1}."
+
+        fen1, marked_sq1 = "", ""
+        fen2, marked_sq2 = "", ""
+
+        white_move_obj = moves_list[i] if i < len(moves_list) else None
+        black_move_obj = moves_list[i + 1] if (i + 1) < len(moves_list) else None
+
+        white_analysis_data = analysis_data[i] if white_move_obj and i < len(analysis_data) else None
+        black_analysis_data = analysis_data[i + 1] if black_move_obj and (i + 1) < len(analysis_data) else None
+
+        has_cpl_in_pair = False
+        if white_analysis_data and white_analysis_data['cpl_for_move'] > 0:
+            has_cpl_in_pair = True
+        if black_analysis_data and black_analysis_data['cpl_for_move'] > 0:
+            has_cpl_in_pair = True
+
+        # White move processing
+        if white_move_obj:
+            current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
+            marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
+            board_for_display.push(white_move_obj)
+            fen1 = board_for_display.board_fen()
+
+        # Black move processing
+        if black_move_obj:
+            current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
+            marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
+            board_for_display.push(black_move_obj)
+            fen2 = board_for_display.board_fen()
+        else:
+            # If no black move, the second board should show the position after white's move
+            fen2 = fen1
+            marked_sq2 = ""  # No black move to mark squares for
+
+        all_calculated_move_pairs.append((
+            current_move_pair_text,
+            fen1, marked_sq1, white_analysis_data,
+            fen2, marked_sq2, black_analysis_data,
+            has_cpl_in_pair
+        ))
+
+    move_pairs_to_display = []
+    if board_scope == "all":
+        move_pairs_to_display = all_calculated_move_pairs
+    else:  # board_scope == "smart"
+        # In 'smart' mode, we only display pairs where at least one move had CPL (i.e., was not perfect)
+        for pair_data in all_calculated_move_pairs:
+            if pair_data[7]:  # Check has_cpl_in_pair flag
+                move_pairs_to_display.append(pair_data)
+
+    # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
+    for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
+            move_pairs_to_display):
+        latex_lines.append(r"\begin{minipage}{\linewidth}")
+        latex_lines.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
+        latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
+
+        # White's move board (state AFTER White's move)
+        latex_lines.append(
+            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
+
+        # Black's move board (state AFTER Black's move) - ONLY display if black move exists
+        if marked_sq2:
+            latex_lines.append(
+                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+        else:
+            latex_lines.append("\\\\")  # Just close the row if no black board
+
+        latex_lines.append("\\end{tabularx}")
+
+        # --- Add Move-by-Move Analysis below boards ---
+        if white_analysis or black_analysis:  # Only add this section if there's analysis data
+            latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
+
+            # First line: Eval scores
+            white_eval_line = f"\\textit{{Eval: {get_eval_string(white_analysis['eval_after_played_move'])}}}" if white_analysis else ""
+            black_eval_line = f"\\textit{{Eval: {get_eval_string(black_analysis['eval_after_played_move'])}}}" if black_analysis else ""
+            latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
+
+            # Second line: Best move / CPL details
+            white_details_line = ""
+            if white_analysis:
+                if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
+                        white_analysis['engine_eval_before_played_move'].is_mate():
+                    white_details_line = f"\\textit{{Best: {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {white_analysis['cpl_for_move']}}}cp, {classify_move_loss(white_analysis['cpl_for_move'])}"
+                else:
+                    white_details_line = "\\textit{Best Move}"
+
+            black_details_line = ""
+            if black_analysis:
+                if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
+                        black_analysis['engine_eval_before_played_move'].is_mate():
+                    black_details_line = f"\\textit{{Best: {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {black_analysis['cpl_for_move']}}}cp, {classify_move_loss(black_analysis['cpl_for_move'])}"
+                else:
+                    black_details_line = "\\textit{Best Move}"
+
+            latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
+
+            latex_lines.append("\\end{tabularx}")
+
+        latex_lines.append("\\vspace{2ex}")  # Add some vertical space between board pairs
+        latex_lines.append(r"\end{minipage}")
+    return latex_lines
+
+
+def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
+                         display_boards=False, board_scope="smart"):
+    """
+    Exports a single chess game, its notation, analysis summary, and optional move-by-move
+    boards with analysis to a LaTeX file. This is the orchestrator method.
+    """
+    latex = []
+
+    # 1. Add game metadata
+    latex.extend(_generate_game_metadata_latex(game, game_index))
+
+    # 2. Add game notation
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
-    # --- Game Statistics Section (after notation) ---
-    if analysis_data:  # Only show analysis summary if analysis data exists
-        latex.append(r"\subsection*{Analysis Summary}")
+    # 3. Add game statistics section (analysis summary)
+    latex.extend(_generate_analysis_summary_latex(analysis_data))
 
-        total_moves_analyzed = len(analysis_data)
-        white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
-        black_moves_count = total_moves_analyzed - white_moves_count
-
-        white_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if d['is_white_move'])
-        black_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if not d['is_white_move'])
-
-        white_avg_cpl = (white_total_cpl / white_moves_count) if white_moves_count > 0 else 0
-        black_avg_cpl = (black_total_cpl / black_moves_count) if black_moves_count > 0 else 0
-
-        white_blunders = sum(1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 200)
-        black_blunders = sum(1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 200)
-        white_mistakes = sum(
-            1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
-        black_mistakes = sum(
-            1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
-        white_inaccuracies = sum(
-            1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
-        black_inaccuracies = sum(
-            1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
-
-        latex.append(dedent(f"""
-            \\begin{{itemize}}
-                \\item \\textbf{{Overall Accuracy:}}
-                \\begin{{itemize}}
-                    \\item White Average CPL: {white_avg_cpl:.2f}
-                    \\item Black Average CPL: {black_avg_cpl:.2f}
-                \\end{{itemize}}
-                \\item \\textbf{{Mistakes \\& Blunders:}}
-                \\begin{{itemize}}
-                    \\item White: {white_blunders} Blunders, {white_mistakes} Mistakes, {white_inaccuracies} Inaccuracies
-                    \\item Black: {black_blunders} Blunders, {black_mistakes} Mistakes, {black_inaccuracies} Inaccuracies
-                \\end{{itemize}}
-            \\end{{itemize}}
-            \\par\\vspace{{\\baselineskip}}
-        """))
-
-    if display_boards:  # New condition to display boards or not
-        board_for_display = game.board()  # Re-initialize board for displaying positions
-        moves_list = list(game.mainline_moves())
-
-        # Stores (move_text, fen_after_white_move, marked_squares_white, white_analysis_data,
-        #          fen_after_black_move, marked_squares_black, black_analysis_data,
-        #          has_cpl_in_pair)
-        all_calculated_move_pairs = []
-
-        for i in range(0, len(moves_list), 2):  # Iterate in steps of 2 (White and Black move pairs)
-            current_move_pair_text = f"{(i // 2) + 1}."
-
-            fen1, marked_sq1 = "", ""
-            fen2, marked_sq2 = "", ""
-
-            white_move_obj = moves_list[i] if i < len(moves_list) else None
-            black_move_obj = moves_list[i + 1] if (i + 1) < len(moves_list) else None
-
-            white_analysis_data = analysis_data[i] if white_move_obj and i < len(analysis_data) else None
-            black_analysis_data = analysis_data[i + 1] if black_move_obj and (i + 1) < len(analysis_data) else None
-
-            has_cpl_in_pair = False
-            if white_analysis_data and white_analysis_data['cpl_for_move'] > 0:
-                has_cpl_in_pair = True
-            if black_analysis_data and black_analysis_data['cpl_for_move'] > 0:
-                has_cpl_in_pair = True
-
-            # White move processing
-            if white_move_obj:
-                current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
-                marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
-                board_for_display.push(white_move_obj)
-                fen1 = board_for_display.board_fen()
-
-            # Black move processing
-            if black_move_obj:
-                current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
-                marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
-                board_for_display.push(black_move_obj)
-                fen2 = board_for_display.board_fen()
-            else:
-                # If no black move, the second board should show the position after white's move
-                fen2 = fen1
-                marked_sq2 = ""  # No black move to mark squares for
-
-            all_calculated_move_pairs.append((
-                current_move_pair_text,
-                fen1, marked_sq1, white_analysis_data,
-                fen2, marked_sq2, black_analysis_data,
-                has_cpl_in_pair
-            ))
-
-        move_pairs_to_display = []
-        if board_scope == "all":
-            move_pairs_to_display = all_calculated_move_pairs
-        else:  # board_scope == "smart"
-            # In 'smart' mode, we only display pairs where at least one move had CPL (i.e., was not perfect)
-            for pair_data in all_calculated_move_pairs:
-                if pair_data[7]:  # Check has_cpl_in_pair flag
-                    move_pairs_to_display.append(pair_data)
-
-        # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
-        for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
-                move_pairs_to_display):
-            latex.append(r"\begin{minipage}{\linewidth}")
-            latex.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
-            latex.append("\\begin{tabularx}{\\linewidth}{X X}")
-
-            # White's move board (state AFTER White's move)
-            latex.append(
-                f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
-
-            # Black's move board (state AFTER Black's move) - ONLY display if black move exists
-            if marked_sq2:
-                latex.append(
-                    f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
-            else:
-                latex.append("\\\\")  # Just close the row if no black board
-
-            latex.append("\\end{tabularx}")
-
-            # --- Add Move-by-Move Analysis below boards ---
-            if white_analysis or black_analysis:  # Only add this section if there's analysis data
-                latex.append("\\begin{tabularx}{\\linewidth}{X X}")
-
-                # First line: Eval scores
-                white_eval_line = f"\\textit{{Eval: {get_eval_string(white_analysis['eval_after_played_move'])}}}" if white_analysis else ""
-                black_eval_line = f"\\textit{{Eval: {get_eval_string(black_analysis['eval_after_played_move'])}}}" if black_analysis else ""
-                latex.append(f"{white_eval_line} & {black_eval_line} \\\\")
-
-                # Second line: Best move / CPL details
-                white_details_line = ""
-                if white_analysis:
-                    if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
-                    white_analysis['engine_eval_before_played_move'].is_mate():
-                        white_details_line = f"\\textit{{Best: {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {white_analysis['cpl_for_move']}}}cp, {classify_move_loss(white_analysis['cpl_for_move'])}"
-                    else:
-                        white_details_line = "\\textit{Best Move}"
-
-                black_details_line = ""
-                if black_analysis:
-                    if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
-                    black_analysis['engine_eval_before_played_move'].is_mate():
-                        black_details_line = f"\\textit{{Best: {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {black_analysis['cpl_for_move']}}}cp, {classify_move_loss(black_analysis['cpl_for_move'])}"
-                    else:
-                        black_details_line = "\\textit{Best Move}"
-
-                latex.append(f"{white_details_line} & {black_details_line} \\\\")
-
-                latex.append("\\end{tabularx}")
-
-            latex.append("\\vspace{2ex}")  # Add some vertical space between board pairs
-            latex.append(r"\end{minipage}")
+    # 4. Add move-by-move board analysis (if enabled)
+    if display_boards:
+        latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope))
 
     game_file = output_dir / f"game_{game_index:03}.tex"
     with open(game_file, "w") as f:
