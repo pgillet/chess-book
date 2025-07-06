@@ -41,7 +41,7 @@ LATEX_HEADER = dedent(r'''
     %\usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
     % \usepackage{utfsym} % For \usym command to display Unicode symbols
     % Redefine tabularxcolumn for vertical centering within X columns
-    \renewcommand{\tabularxcolumn}[1]{m{#1}}
+    \renewcommand{\tabularxcolumn}[1]{>{\centering\arraybackslash}m{#1}}
 
     % Remove numbering from sections AND from TOC entries for sections
     \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
@@ -69,7 +69,7 @@ LATEX_HEADER = dedent(r'''
     \fancypagestyle{plain}{
         \fancyhf{} % Clear all header and footer fields
         \fancyfoot[LE,RO]{\thepage} % Page numbers on the bottom left for even pages and bottom right for odd pages
-        \renewcommand{\headrulewidth}{0pt} % Ensure the horizontal line is removed on plain pages as well
+        \renewcommand{\headrulerulewidth}{0pt} % Ensure the horizontal line is removed on plain pages as well
     }
 
     % IMPORTANT: You might need to install the 'utfsym' package if you don't have it.
