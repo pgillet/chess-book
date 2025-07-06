@@ -328,7 +328,6 @@ def _generate_game_notation_latex(game, notation_type):
         notation_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
 
     notation_lines.append("\\end{tabularx}")  # End the tabularx environment
-    notation_lines.append("\\par\\vspace{\\baselineskip}")  # Changed to ensure one line of space
 
     return notation_lines
 
@@ -385,19 +384,18 @@ def _generate_analysis_summary_latex(analysis_data, lang='en'):
         1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
 
     latex_lines.append(dedent(f"""
-        \\begin{{itemize}}
+        \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
             \\item \\textbf{{{MESSAGES[lang]['overall_accuracy']}}}
-            \\begin{{itemize}}
+            \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
                 \\item {MESSAGES[lang]['white_avg_cpl']} {white_avg_cpl:.2f}
                 \\item {MESSAGES[lang]['black_avg_cpl']} {black_avg_cpl:.2f}
             \\end{{itemize}}
             \\item \\textbf{{{MESSAGES[lang]['mistakes_blunders']}}}
-            \\begin{{itemize}}
+            \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
                 \\item {MESSAGES[lang]['white_player_default']}: {white_blunders} {MESSAGES[lang]['blunders_text']}, {white_mistakes} {MESSAGES[lang]['mistakes_text']}, {white_inaccuracies} {MESSAGES[lang]['inaccuracies_text']}
                 \\item {MESSAGES[lang]['black_player_default']}: {black_blunders} {MESSAGES[lang]['blunders_text']}, {black_mistakes} {MESSAGES[lang]['mistakes_text']}, {black_inaccuracies} {MESSAGES[lang]['inaccuracies_text']}
             \\end{{itemize}}
         \\end{{itemize}}
-        \\par\\vspace{{\\baselineskip}}
     """))
     return latex_lines
 
@@ -562,11 +560,17 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     # 1. Add game metadata
     latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
+    # Start a minipage to keep notation and summary together
+    latex.append(r"\begin{minipage}{\linewidth}")
+
     # 2. Add game notation
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
     # 3. Add game statistics section (analysis summary)
     latex.extend(_generate_analysis_summary_latex(analysis_data, lang))
+
+    # End the minipage
+    latex.append(r"\end{minipage}")
 
     # 4. Add move-by-move board analysis (if enabled)
     if display_boards:
