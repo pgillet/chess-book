@@ -8,6 +8,8 @@ import subprocess  # For running pdflatex
 import chess.engine
 import chess.pgn
 
+LATEX_COMPILE_PASSES = 1
+
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
 MAX_BOARDS_PER_PAGE = 6  # This is a guideline for layout, not a strict page break trigger now
 
@@ -530,7 +532,7 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex"):
 
     print(f"Compiling LaTeX files in {output_dir}...")
     # Compile multiple times for TOC and references
-    for i in range(3):  # Usually 2-3 runs are sufficient
+    for i in range(LATEX_COMPILE_PASSES):  # Usually 2-3 runs are sufficient
         try:
             result = subprocess.run(
                 ["pdflatex", "-interaction=nonstopmode", main_tex_file],
