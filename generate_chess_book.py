@@ -340,7 +340,8 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope)
     if not analysis_data:
         return latex_lines  # Return empty if no analysis data
 
-    board_for_display = game.board()  # Re-initialize board for displaying positions
+    # Create a new board for displaying positions, starting from the game's initial position
+    board_for_display = game.board()
     moves_list = list(game.mainline_moves())
 
     # Stores (move_text, fen_after_white_move, marked_squares_white, white_analysis_data,
@@ -366,17 +367,42 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope)
         if black_analysis_data and black_analysis_data['cpl_for_move'] > 0:
             has_cpl_in_pair = True
 
-        # White move processing
+        # Process White's move
         if white_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
-            marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
-            board_for_display.push(white_move_obj)
+
+            # Determine marked squares for White's move
+            if board_for_display.is_castling(white_move_obj):
+                king_from_sq = white_move_obj.from_square
+                # The board's turn is WHITE before white_move_obj is pushed
+                if board_for_display.is_kingside_castling(white_move_obj):
+                    rook_from_sq = chess.H1
+                else:  # Queenside castling
+                    rook_from_sq = chess.A1
+                marked_sq1 = f"{{ {chess.square_name(king_from_sq)}, {chess.square_name(rook_from_sq)} }}"
+            else:
+                marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
+
+            board_for_display.push(white_move_obj)  # Now board_for_display reflects state AFTER white's move
             fen1 = board_for_display.board_fen()
 
-        # Black move processing
+        # Process Black's move (if exists)
         if black_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
-            marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
+
+            # Determine marked squares for Black's move
+            # At this point, board_for_display is in the state *after white's move* and *before black's move*.
+            # Its turn is correctly BLACK.
+            if board_for_display.is_castling(black_move_obj):
+                king_from_sq = black_move_obj.from_square
+                if board_for_display.is_kingside_castling(black_move_obj):
+                    rook_from_sq = chess.H8
+                else:  # Queenside castling
+                    rook_from_sq = chess.A8
+                marked_sq2 = f"{{ {chess.square_name(king_from_sq)}, {chess.square_name(rook_from_sq)} }}"
+            else:
+                marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
+
             board_for_display.push(black_move_obj)
             fen2 = board_for_display.board_fen()
         else:
