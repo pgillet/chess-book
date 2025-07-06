@@ -2,6 +2,8 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 import argparse
+import shutil  # For deleting directories
+import subprocess  # For running pdflatex
 
 import chess.engine
 import chess.pgn
@@ -479,10 +481,66 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
         f.write("\n".join(latex))
 
 
+def delete_output_directory(output_dir_path):
+    """Deletes the output directory if it exists."""
+    output_dir = Path(output_dir_path)
+    if output_dir.exists() and output_dir.is_dir():
+        print(f"Deleting existing output directory: {output_dir}")
+        try:
+            shutil.rmtree(output_dir)
+        except OSError as e:
+            print(f"Error deleting directory {output_dir}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+
+def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex"):
+    """Compiles the LaTeX files to PDF and cleans up auxiliary files."""
+    output_dir = Path(output_dir_path)
+    main_tex_path = output_dir / main_tex_file
+
+    if not main_tex_path.exists():
+        print(f"Main LaTeX file not found: {main_tex_path}", file=sys.stderr)
+        return
+
+    print(f"Compiling LaTeX files in {output_dir}...")
+    # Compile multiple times for TOC and references
+    for i in range(3):  # Usually 2-3 runs are sufficient
+        try:
+            result = subprocess.run(
+                ["pdflatex", "-interaction=nonstopmode", main_tex_file],
+                cwd=output_dir,
+                capture_output=True,
+                text=True,
+                check=False  # Do not raise exception for non-zero exit code, we check it manually
+            )
+            if result.returncode != 0:
+                print(f"LaTeX compilation failed on pass {i + 1}. Output:", file=sys.stderr)
+                print(result.stdout, file=sys.stderr)
+                print(result.stderr, file=sys.stderr)
+                # Continue for multiple passes even if one fails, to get more errors
+        except FileNotFoundError:
+            print("Error: pdflatex command not found. Please ensure LaTeX is installed and in your PATH.",
+                  file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred during LaTeX compilation: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    print("LaTeX compilation complete. Cleaning up auxiliary files...")
+    # Clean up auxiliary files
+    aux_extensions = ['.aux', '.log', '.lof', '.toc', '.out', '.fls', '.fdb_latexmk', '.synctex.gz']
+    for f in output_dir.iterdir():
+        if f.suffix in aux_extensions or (f.is_file() and f.name.startswith("game_") and f.suffix == '.tex'):
+            try:
+                f.unlink()
+            except OSError as e:
+                print(f"Error deleting auxiliary file {f}: {e}", file=sys.stderr)
+
+
 def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", display_boards=False, board_scope="smart"):
     pgn_path = Path(pgn_path)
     output_dir = Path(output_dir_path)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)  # Recreate the directory after deletion if it was deleted
 
     with open(pgn_path) as f:
         games = []
@@ -566,5 +624,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # 1. Parse command line args (already done by argparse)
+
+    # 2. Delete the output directory if it exists
+    delete_output_directory(args.output_dir)
+
+    # 3. Run generate_chess_book
     generate_chess_book(args.pgn_file, args.output_dir, args.notation_type, display_boards=args.display_boards,
                         board_scope=args.board_scope)
+
+    # 4. Compile the latex files with pdflatex
+    compile_latex_to_pdf(args.output_dir)
