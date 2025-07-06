@@ -38,9 +38,10 @@ LATEX_HEADER = dedent(r'''
     \usepackage{tabularx}
     \usepackage{skak}
     \usepackage{scalerel}
+    \usepackage{array} % Required for >{\centering\arraybackslash}
     %\usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
     % \usepackage{utfsym} % For \usym command to display Unicode symbols
-    % Redefine tabularxcolumn for vertical centering within X columns
+    % Redefine tabularxcolumn for vertical and horizontal centering within X columns
     \renewcommand{\tabularxcolumn}[1]{>{\centering\arraybackslash}m{#1}}
 
     % Remove numbering from sections AND from TOC entries for sections
@@ -87,6 +88,79 @@ LATEX_HEADER = dedent(r'''
 
 LATEX_FOOTER = "\\end{document}"
 
+MESSAGES = {
+    'en': {
+        'game_event_default': 'Game',
+        'white_player_default': 'White',
+        'black_player_default': 'Black',
+        'analysis_summary_title': 'Analysis Summary',
+        'overall_accuracy': 'Overall Accuracy:',
+        'white_avg_cpl': 'White Average CPL:',
+        'black_avg_cpl': 'Black Average CPL:',
+        'mistakes_blunders': 'Mistakes & Blunders:',
+        'blunders_text': 'Blunders',
+        'blunder_text_singular': 'Blunder', # Added singular form
+        'mistakes_text': 'Mistakes',
+        'mistake_text_singular': 'Mistake', # Added singular form
+        'inaccuracies_text': 'Inaccuracies',
+        'inaccuracy_text_singular': 'Inaccuracy', # Added singular form
+        'good_move_text': 'Good Move',
+        'eval_text': 'Eval:',
+        'best_move_text': 'Best:',
+        'loss_text': 'Loss:',
+        'cp_text': 'cp',
+        'best_move_played_text': 'Best Move',
+        'error_starting_stockfish': "Error starting Stockfish engine: {e}. Please ensure '{ENGINE_PATH}' is correct and Stockfish is installed.",
+        'analysis_disabled_warning': "Analysis features (CPL, blunders, best moves) will be disabled for all games.",
+        'skipping_stockfish_analysis': "Skipping Stockfish analysis for game {game_num} due to engine error.",
+        'exporting_game': "Exporting game {current_game}/{total_games} to LaTeX...",
+        'skipping_game_error': "⚠️ Skipping game {game_num} due to an error during processing: {error_msg}",
+        'deleting_output_dir': "Deleting existing output directory: {output_dir}",
+        'error_deleting_dir': "Error deleting directory {output_dir}: {error_msg}",
+        'compiling_latex': "Compiling LaTeX files in {output_dir}...",
+        'main_latex_not_found': "Main LaTeX file not found: {main_tex_file}",
+        'latex_compile_failed': "LaTeX compilation failed on pass {pass_num}. Output:",
+        'pdflatex_not_found': "Error: pdflatex command not found. Please ensure LaTeX is installed and in your PATH.",
+        'unexpected_latex_error': "An unexpected error occurred during LaTeX compilation: {error_msg}",
+        'latex_compile_complete': "LaTeX compilation complete. Cleaning up auxiliary files...",
+    },
+    'fr': {
+        'game_event_default': 'Partie',
+        'white_player_default': 'Blanc',
+        'black_player_default': 'Noir',
+        'analysis_summary_title': 'Résumé de l\'Analyse',
+        'overall_accuracy': 'Précision Globale :',
+        'white_avg_cpl': 'CPL Moyen des Blancs :',
+        'black_avg_cpl': 'CPL Moyen des Noirs :',
+        'mistakes_blunders': 'Erreurs et Gaffes :',
+        'blunders_text': 'Gaffes',
+        'blunder_text_singular': 'Gaffe', # Added singular form
+        'mistakes_text': 'Erreurs',
+        'mistake_text_singular': 'Erreur', # Added singular form
+        'inaccuracies_text': 'Imprécisions',
+        'inaccuracy_text_singular': 'Imprécision', # Added singular form
+        'good_move_text': 'Bon Coup',
+        'eval_text': 'Éval. :',
+        'best_move_text': 'Meilleur :',
+        'loss_text': 'Perte :',
+        'cp_text': 'c',
+        'best_move_played_text': 'Meilleur Coup',
+        'error_starting_stockfish': "Erreur au démarrage du moteur Stockfish : {e}. Veuillez vous assurer que '{ENGINE_PATH}' est correct et que Stockfish est installé.",
+        'analysis_disabled_warning': "Les fonctionnalités d'analyse (CPL, gaffes, meilleurs coups) seront désactivées pour toutes les parties.",
+        'skipping_stockfish_analysis': "Analyse Stockfish ignorée pour la partie {game_num} en raison d'une erreur moteur.",
+        'exporting_game': "Exportation de la partie {current_game}/{total_games} vers LaTeX...",
+        'skipping_game_error': "⚠️ Partie {game_num} ignorée en raison d'une erreur lors du traitement : {error_msg}",
+        'deleting_output_dir': "Suppression du répertoire de sortie existant : {output_dir}",
+        'error_deleting_dir': "Erreur lors de la suppression du répertoire {output_dir} : {error_msg}",
+        'compiling_latex': "Compilation des fichiers LaTeX dans {output_dir}...",
+        'main_latex_not_found': "Fichier LaTeX principal introuvable : {main_tex_file}",
+        'latex_compile_failed': "Échec de la compilation LaTeX à la passe {pass_num}. Sortie :",
+        'pdflatex_not_found': "Erreur : Commande pdflatex introuvable. Veuillez vous assurer que LaTeX est installé et dans votre PATH.",
+        'unexpected_latex_error': "Une erreur inattendue est survenue lors de la compilation LaTeX : {error_msg}",
+        'latex_compile_complete': "Compilation LaTeX terminée. Nettoyage des fichiers auxiliaires...",
+    }
+}
+
 
 def escape_latex_special_chars(text):
     """
@@ -105,35 +179,29 @@ def escape_latex_special_chars(text):
     return text
 
 
-def get_eval_string(score):
+def get_eval_string(score, lang='en'):
     """Formats a Stockfish score object into a human-readable string."""
     if score is None:
         return "N/A"
 
-    # Ensure we are always evaluating from White's perspective for display consistency
     white_pov_score = score.white()
 
     if white_pov_score.is_mate():
-        # If it's a mate, get the mate value from the white_pov_score object
-        # Attempt to call mate() as a method, in case it's implemented that way in the user's environment
         mate_value = white_pov_score.mate()
-        # Display M0 for mate in 0 (e.g., stalemate or immediate mate from prev move)
-        # Use abs() to ensure positive mate distance as per convention.
         return f"M{abs(mate_value)}" if mate_value != 0 else "0"
 
-    # If not mate, convert centipawns to pawns with two decimal places and a sign
-    return f"{white_pov_score.cp / 100.0:+.2f}"
+    return f"{white_pov_score.cp / 100.0:+.2f}{MESSAGES[lang]['cp_text']}"
 
 
-def classify_move_loss(cpl):
+def classify_move_loss(cpl, lang='en'):
     """Classifies a move based on Centipawn Loss (CPL)."""
     if cpl >= 200:
-        return "\\textbf{Blunder}"
+        return f"\\textbf{{{MESSAGES[lang]['blunder_text_singular']}}}" # Use singular
     elif cpl >= 100:
-        return "\\textbf{Mistake}"
+        return f"\\textbf{{{MESSAGES[lang]['mistake_text_singular']}}}" # Use singular
     elif cpl >= 50:
-        return "Inaccuracy"
-    return "Good Move"
+        return MESSAGES[lang]['inaccuracy_text_singular'] # Use singular
+    return MESSAGES[lang]['good_move_text']
 
 
 def analyze_game_with_stockfish(game, engine):
@@ -265,14 +333,14 @@ def _generate_game_notation_latex(game, notation_type):
     return notation_lines
 
 
-def _generate_game_metadata_latex(game, game_index):
+def _generate_game_metadata_latex(game, game_index, lang='en'):
     """
     Generates the LaTeX for the game's metadata section (title, players, result).
     """
     latex_lines = []
-    header = game.headers.get("Event", f"Game {game_index}")
-    white = game.headers.get("White", "White")
-    black = game.headers.get("Black", "Black")
+    header = game.headers.get("Event", MESSAGES[lang]['game_event_default'])
+    white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
+    black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
     result = game.headers.get("Result", "*")
 
     white_escaped = escape_latex_special_chars(white)
@@ -285,7 +353,7 @@ def _generate_game_metadata_latex(game, game_index):
     return latex_lines
 
 
-def _generate_analysis_summary_latex(analysis_data):
+def _generate_analysis_summary_latex(analysis_data, lang='en'):
     """
     Generates the LaTeX for the analysis summary section (CPL, blunders, etc.).
     """
@@ -293,7 +361,7 @@ def _generate_analysis_summary_latex(analysis_data):
     if not analysis_data:
         return latex_lines  # Return empty if no analysis data
 
-    latex_lines.append(r"\subsection*{Analysis Summary}")
+    latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}")
 
     total_moves_analyzed = len(analysis_data)
     white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
@@ -318,15 +386,15 @@ def _generate_analysis_summary_latex(analysis_data):
 
     latex_lines.append(dedent(f"""
         \\begin{{itemize}}
-            \\item \\textbf{{Overall Accuracy:}}
+            \\item \\textbf{{{MESSAGES[lang]['overall_accuracy']}}}
             \\begin{{itemize}}
-                \\item White Average CPL: {white_avg_cpl:.2f}
-                \\item Black Average CPL: {black_avg_cpl:.2f}
+                \\item {MESSAGES[lang]['white_avg_cpl']} {white_avg_cpl:.2f}
+                \\item {MESSAGES[lang]['black_avg_cpl']} {black_avg_cpl:.2f}
             \\end{{itemize}}
-            \\item \\textbf{{Mistakes \\& Blunders:}}
+            \\item \\textbf{{{MESSAGES[lang]['mistakes_blunders']}}}
             \\begin{{itemize}}
-                \\item White: {white_blunders} Blunders, {white_mistakes} Mistakes, {white_inaccuracies} Inaccuracies
-                \\item Black: {black_blunders} Blunders, {black_mistakes} Mistakes, {black_inaccuracies} Inaccuracies
+                \\item {MESSAGES[lang]['white_player_default']}: {white_blunders} {MESSAGES[lang]['blunders_text']}, {white_mistakes} {MESSAGES[lang]['mistakes_text']}, {white_inaccuracies} {MESSAGES[lang]['inaccuracies_text']}
+                \\item {MESSAGES[lang]['black_player_default']}: {black_blunders} {MESSAGES[lang]['blunders_text']}, {black_mistakes} {MESSAGES[lang]['mistakes_text']}, {black_inaccuracies} {MESSAGES[lang]['inaccuracies_text']}
             \\end{{itemize}}
         \\end{{itemize}}
         \\par\\vspace{{\\baselineskip}}
@@ -334,7 +402,7 @@ def _generate_analysis_summary_latex(analysis_data):
     return latex_lines
 
 
-def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope):
+def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en'):
     """
     Generates the LaTeX for move-by-move board displays and their analysis.
     """
@@ -453,8 +521,8 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope)
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
 
             # First line: Eval scores
-            white_eval_line = f"\\textit{{Eval: {get_eval_string(white_analysis['eval_after_played_move'])}}}" if white_analysis else ""
-            black_eval_line = f"\\textit{{Eval: {get_eval_string(black_analysis['eval_after_played_move'])}}}" if black_analysis else ""
+            white_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(white_analysis['eval_after_played_move'], lang)}}}" if white_analysis else ""
+            black_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(black_analysis['eval_after_played_move'], lang)}}}" if black_analysis else ""
             latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
 
             # Second line: Best move / CPL details
@@ -462,17 +530,17 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope)
             if white_analysis:
                 if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
                         white_analysis['engine_eval_before_played_move'].is_mate():
-                    white_details_line = f"\\textit{{Best: {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {white_analysis['cpl_for_move']}}}cp, {classify_move_loss(white_analysis['cpl_for_move'])}"
+                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
                 else:
-                    white_details_line = "\\textit{Best Move}"
+                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
 
             black_details_line = ""
             if black_analysis:
                 if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
                         black_analysis['engine_eval_before_played_move'].is_mate():
-                    black_details_line = f"\\textit{{Best: {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{Loss: {black_analysis['cpl_for_move']}}}cp, {classify_move_loss(black_analysis['cpl_for_move'])}"
+                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
                 else:
-                    black_details_line = "\\textit{Best Move}"
+                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
 
             latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
 
@@ -484,7 +552,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope)
 
 
 def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
-                         display_boards=False, board_scope="smart"):
+                         display_boards=False, board_scope="smart", lang='en'):
     """
     Exports a single chess game, its notation, analysis summary, and optional move-by-move
     boards with analysis to a LaTeX file. This is the orchestrator method.
@@ -492,45 +560,45 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     latex = []
 
     # 1. Add game metadata
-    latex.extend(_generate_game_metadata_latex(game, game_index))
+    latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
     # 2. Add game notation
     latex.extend(_generate_game_notation_latex(game, notation_type))
 
     # 3. Add game statistics section (analysis summary)
-    latex.extend(_generate_analysis_summary_latex(analysis_data))
+    latex.extend(_generate_analysis_summary_latex(analysis_data, lang))
 
     # 4. Add move-by-move board analysis (if enabled)
     if display_boards:
-        latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope))
+        latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang))
 
     game_file = output_dir / f"game_{game_index:03}.tex"
     with open(game_file, "w") as f:
         f.write("\n".join(latex))
 
 
-def delete_output_directory(output_dir_path):
+def delete_output_directory(output_dir_path, lang='en'):
     """Deletes the output directory if it exists."""
     output_dir = Path(output_dir_path)
     if output_dir.exists() and output_dir.is_dir():
-        print(f"Deleting existing output directory: {output_dir}")
+        print(MESSAGES[lang]['deleting_output_dir'].format(output_dir=output_dir))
         try:
             shutil.rmtree(output_dir)
         except OSError as e:
-            print(f"Error deleting directory {output_dir}: {e}", file=sys.stderr)
+            print(MESSAGES[lang]['error_deleting_dir'].format(output_dir=output_dir, error_msg=e), file=sys.stderr)
             sys.exit(1)
 
 
-def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex"):
+def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='en'):
     """Compiles the LaTeX files to PDF and cleans up auxiliary files."""
     output_dir = Path(output_dir_path)
     main_tex_path = output_dir / main_tex_file
 
     if not main_tex_path.exists():
-        print(f"Main LaTeX file not found: {main_tex_path}", file=sys.stderr)
+        print(MESSAGES[lang]['main_latex_not_found'].format(main_tex_file=main_tex_path), file=sys.stderr)
         return
 
-    print(f"Compiling LaTeX files in {output_dir}...")
+    print(MESSAGES[lang]['compiling_latex'].format(output_dir=output_dir))
     # Compile multiple times for TOC and references
     for i in range(LATEX_COMPILE_PASSES):  # Usually 2-3 runs are sufficient
         try:
@@ -542,19 +610,18 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex"):
                 check=False  # Do not raise exception for non-zero exit code, we check it manually
             )
             if result.returncode != 0:
-                print(f"LaTeX compilation failed on pass {i + 1}. Output:", file=sys.stderr)
+                print(MESSAGES[lang]['latex_compile_failed'].format(pass_num=i + 1), file=sys.stderr)
                 print(result.stdout, file=sys.stderr)
                 print(result.stderr, file=sys.stderr)
                 # Continue for multiple passes even if one fails, to get more errors
         except FileNotFoundError:
-            print("Error: pdflatex command not found. Please ensure LaTeX is installed and in your PATH.",
-                  file=sys.stderr)
+            print(MESSAGES[lang]['pdflatex_not_found'], file=sys.stderr)
             sys.exit(1)
         except Exception as e:
-            print(f"An unexpected error occurred during LaTeX compilation: {e}", file=sys.stderr)
+            print(MESSAGES[lang]['unexpected_latex_error'].format(error_msg=e), file=sys.stderr)
             sys.exit(1)
 
-    print("LaTeX compilation complete. Cleaning up auxiliary files...")
+    print(MESSAGES[lang]['latex_compile_complete'])
     # Clean up auxiliary files
     aux_extensions = ['.aux', '.log', '.lof', '.toc', '.out', '.fls', '.fdb_latexmk', '.synctex.gz']
     for f in output_dir.iterdir():
@@ -565,7 +632,7 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex"):
                 print(f"Error deleting auxiliary file {f}: {e}", file=sys.stderr)
 
 
-def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", display_boards=False, board_scope="smart"):
+def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", display_boards=False, board_scope="smart", lang='en'):
     pgn_path = Path(pgn_path)
     output_dir = Path(output_dir_path)
     output_dir.mkdir(parents=True, exist_ok=True)  # Recreate the directory after deletion if it was deleted
@@ -587,26 +654,25 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", dis
         # Configure engine for multi-threading and hash table size for better performance
         engine.configure({"Threads": 2, "Hash": 128})
     except Exception as e:
-        print(
-            f"Error starting Stockfish engine: {e}. Please ensure '{ENGINE_PATH}' is correct and Stockfish is installed.")
-        print("Analysis features (CPL, blunders, best moves) will be disabled for all games.")
+        print(MESSAGES[lang]['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
+        print(MESSAGES[lang]['analysis_disabled_warning'])
         engine = None
 
     for idx, game in enumerate(games):
         try:
-            print(f"Exporting game {idx + 1}/{len(games)} to LaTeX...")
+            print(MESSAGES[lang]['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
 
             analysis_data = []
             if engine:
                 analysis_data = analyze_game_with_stockfish(game, engine)
             else:
-                print(f"Skipping Stockfish analysis for game {idx + 1} due to engine error.")
+                print(MESSAGES[lang]['skipping_stockfish_analysis'].format(game_num=idx + 1))
 
             export_game_to_latex(game, idx + 1, output_dir, analysis_data, notation_type, display_boards=display_boards,
-                                 board_scope=board_scope)
+                                 board_scope=board_scope, lang=lang)
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
-            print(f"⚠️ Skipping game {idx + 1} due to an error during processing: {e}")
+            print(MESSAGES[lang]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
 
     tex_master.append(LATEX_FOOTER)
     with open(output_dir / "chess_book.tex", "w") as f:
@@ -649,17 +715,25 @@ if __name__ == "__main__":
         default="smart",
         help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart')."
     )
+    parser.add_argument(
+        "--language",
+        type=str,
+        choices=["en", "fr"],
+        default="en",
+        help="Language for the generated text (default: 'en')."
+    )
+
 
     args = parser.parse_args()
 
     # 1. Parse command line args (already done by argparse)
 
     # 2. Delete the output directory if it exists
-    delete_output_directory(args.output_dir)
+    delete_output_directory(args.output_dir, args.language)
 
     # 3. Run generate_chess_book
     generate_chess_book(args.pgn_file, args.output_dir, args.notation_type, display_boards=args.display_boards,
-                        board_scope=args.board_scope)
+                        board_scope=args.board_scope, lang=args.language)
 
     # 4. Compile the latex files with pdflatex
-    compile_latex_to_pdf(args.output_dir)
+    compile_latex_to_pdf(args.output_dir, lang=args.language)
