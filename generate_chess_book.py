@@ -39,10 +39,11 @@ LATEX_HEADER = dedent(r'''
     % Redefine tabularxcolumn for vertical centering within X columns
     \renewcommand{\tabularxcolumn}[1]{m{#1}}
 
-    % Remove numbering from sections
+    % Remove numbering from sections AND from TOC entries for sections
     \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
-    % Control spacing around sections: {command}{left_indent}{space_before}{space_after}
     \titlespacing{\section}{0pt}{0pt}{0pt}
+    \setcounter{secnumdepth}{-1} % This hides section numbers in the TOC as well
+    \setcounter{tocdepth}{1} % Ensure sections are included in TOC, but not lower levels by default
     \setlength{\parindent}{0pt}
 
     % Redefine \sectionmark to show only the section title without numbering
