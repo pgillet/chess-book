@@ -27,7 +27,8 @@ UNICODE_CHESS_SYMBOL = {
     'r': r'\usym{265C}', 'q': r'\usym{265B}', 'k': r'\usym{265A}',
 }
 
-LATEX_HEADER = dedent(r'''
+# Split LATEX_HEADER into two parts to allow insertion of epigraph in between
+LATEX_HEADER_PART1 = dedent(r'''
     \documentclass[10pt]{book}
     \usepackage[margin=0.7in]{geometry}
     \usepackage{chessboard}
@@ -82,6 +83,9 @@ LATEX_HEADER = dedent(r'''
     % of the font installed on your system:
     % \setmainfont{Your Chess Unicode Font Name}
     \begin{document}
+''')
+
+LATEX_HEADER_PART2_TOC = dedent(r'''
     \tableofcontents % Generates the Table of Contents
     \newpage % Starts the main content on a new page after the TOC
 ''')
@@ -636,10 +640,12 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
                 print(f"Error deleting auxiliary file {f}: {e}", file=sys.stderr)
 
 
-def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", display_boards=False, board_scope="smart", lang='en'):
+def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine",
+                        display_boards=False, board_scope="smart", lang='en',
+                        epigraph_file_path=None):
     pgn_path = Path(pgn_path)
     output_dir = Path(output_dir_path)
-    output_dir.mkdir(parents=True, exist_ok=True)  # Recreate the directory after deletion if it was deleted
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     with open(pgn_path) as f:
         games = []
@@ -649,7 +655,35 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", dis
                 break
             games.append(game)
 
-    tex_master = [LATEX_HEADER]
+    # Start with the first part of the LaTeX header (preamble and \begin{document})
+    tex_master = [LATEX_HEADER_PART1]
+
+    # --- ADD EPIGRAPH PAGE (IF SPECIFIED) ---
+    if epigraph_file_path:
+        epigraph_path = Path(epigraph_file_path)
+        if epigraph_path.exists():
+            try:
+                with open(epigraph_path, 'r', encoding='utf-8') as f:
+                    epigraph_content = f.read()
+                formatted_epigraph = (
+                    r"\newpage" + "\n" +
+                    r"\thispagestyle{empty}" + "\n" + # No page number for epigraph
+                    r"\vspace*{.3\textheight}" + "\n" + # Start a third of the way down
+                    r"\begin{flushright}" + "\n" +
+                    r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
+                    escape_latex_special_chars(epigraph_content).replace('\n', r"\\*") + "\n" +
+                    r"}" + "\n" +
+                    r"\end{flushright}" + "\n"
+                )
+                tex_master.append(formatted_epigraph)
+            except Exception as e:
+                print(f"Warning: Could not read epigraph file {epigraph_path}: {e}", file=sys.stderr)
+        else:
+            print(f"Warning: Epigraph file not found at {epigraph_path}", file=sys.stderr)
+    # --- END EPIGRAPH ADDITION ---
+
+    # Add the second part of the LaTeX header (Table of Contents and new page for main content)
+    tex_master.append(LATEX_HEADER_PART2_TOC)
 
     # Initialize engine once for all games
     engine = None
@@ -672,7 +706,8 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine", dis
             else:
                 print(MESSAGES[lang]['skipping_stockfish_analysis'].format(game_num=idx + 1))
 
-            export_game_to_latex(game, idx + 1, output_dir, analysis_data, notation_type, display_boards=display_boards,
+            export_game_to_latex(game, idx + 1, output_dir, analysis_data, notation_type, show_mover=False, # show_mover is hardcoded to false
+                                 display_boards=display_boards,
                                  board_scope=board_scope, lang=lang)
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
@@ -726,6 +761,11 @@ if __name__ == "__main__":
         default="en",
         help="Language for the generated text (default: 'en')."
     )
+    parser.add_argument(
+        "--epigraph_file",
+        type=str,
+        help="Path to a raw text file for the epigraph page (optional)."
+    )
 
 
     args = parser.parse_args()
@@ -736,8 +776,10 @@ if __name__ == "__main__":
     delete_output_directory(args.output_dir, args.language)
 
     # 3. Run generate_chess_book
-    generate_chess_book(args.pgn_file, args.output_dir, args.notation_type, display_boards=args.display_boards,
-                        board_scope=args.board_scope, lang=args.language)
+    generate_chess_book(args.pgn_file, args.output_dir, args.notation_type,
+                        display_boards=args.display_boards,
+                        board_scope=args.board_scope, lang=args.language,
+                        epigraph_file_path=args.epigraph_file)
 
     # 4. Compile the latex files with pdflatex
     compile_latex_to_pdf(args.output_dir, lang=args.language)
