@@ -127,6 +127,8 @@ MESSAGES = {
         'pdflatex_not_found': "Error: pdflatex command not found. Please ensure LaTeX is installed and in your PATH.",
         'unexpected_latex_error': "An unexpected error occurred during LaTeX compilation: {error_msg}",
         'latex_compile_complete': "LaTeX compilation complete. Cleaning up auxiliary files...",
+        'front_matter_page_file_not_found': "Warning: file not found at {path}",
+        'error_reading_front_matter_page': "Warning: Could not read file {path}: {e}",
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -162,6 +164,8 @@ MESSAGES = {
         'pdflatex_not_found': "Erreur : Commande pdflatex introuvable. Veuillez vous assurer que LaTeX est installé et dans votre PATH.",
         'unexpected_latex_error': "Une erreur inattendue est survenue lors de la compilation LaTeX : {error_msg}",
         'latex_compile_complete': "Compilation LaTeX terminée. Nettoyage des fichiers auxiliaires...",
+        'front_matter_page_file_not_found': "Avertissement : Fichier introuvable à {path}",
+        'error_reading_front_matter_page': "Avertissement : Impossible de lire le fichier {path} : {e}",
     }
 }
 
@@ -643,41 +647,41 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
                 print(f"Error deleting auxiliary file {f}: {e}", file=sys.stderr)
 
 
-def _add_epigraph_to_latex(tex_master_list, epigraph_file_path, lang='en'):
+def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
     """
-    Adds the epigraph content to the LaTeX master list if an epigraph file is provided.
+    Adds the front matter content to the LaTeX master list if a file is provided.
     """
-    if epigraph_file_path:
-        epigraph_path = Path(epigraph_file_path)
-        if epigraph_path.exists():
+    if file_path:
+        content_path = Path(file_path)
+        if content_path.exists():
             try:
-                with open(epigraph_path, 'r', encoding='utf-8') as f:
-                    epigraph_content = f.read()
+                with open(content_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
 
-                epigraph_content_processed = escape_latex_special_chars(epigraph_content)
-                epigraph_content_processed = epigraph_content_processed.replace('\n\n', r"\par\noindent\vspace{\baselineskip}")
-                epigraph_content_processed = epigraph_content_processed.replace('\n', r"\\*")
+                content_processed = escape_latex_special_chars(content)
+                content_processed = content_processed.replace('\n\n', r"\par\noindent\vspace{\baselineskip}")
+                content_processed = content_processed.replace('\n', r"\\*")
 
-                formatted_epigraph = (
+                formatted_content = (
                     r"\newpage" + "\n" +
-                    r"\thispagestyle{empty}" + "\n" + # No page number for epigraph
+                    r"\thispagestyle{empty}" + "\n" + # No page number for front matter
                     r"\vspace*{.3\textheight}" + "\n" + # Start a third of the way down
                     r"\begin{flushright}" + "\n" +
                     r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
-                    epigraph_content_processed + "\n" +
+                    content_processed + "\n" +
                     r"}" + "\n" +
                     r"\end{flushright}" + "\n"
                 )
-                tex_master_list.append(formatted_epigraph)
+                tex_master_list.append(formatted_content)
             except Exception as e:
-                print(f"Warning: Could not read epigraph file {epigraph_path}: {e}", file=sys.stderr)
+                print(MESSAGES[lang]['error_reading_front_matter_page'].format(path=content_path, e=e), file=sys.stderr)
         else:
-            print(f"Warning: Epigraph file not found at {epigraph_path}", file=sys.stderr)
+            print(MESSAGES[lang]['front_matter_page_file_not_found'].format(path=content_path), file=sys.stderr)
 
 
 def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine",
                         display_boards=False, board_scope="smart", lang='en',
-                        epigraph_file_path=None):
+                        epigraph_file_path=None, dedication_file_path=None):
     pgn_path = Path(pgn_path)
     output_dir = Path(output_dir_path)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -693,8 +697,11 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine",
     # Start with the first part of the LaTeX header (preamble and \begin{document})
     tex_master = [LATEX_HEADER_PART1]
 
+    # Add dedication page (if specified)
+    _add_front_matter_page_to_latex(tex_master, dedication_file_path, lang)
+
     # Add epigraph page (if specified)
-    _add_epigraph_to_latex(tex_master, epigraph_file_path, lang)
+    _add_front_matter_page_to_latex(tex_master, epigraph_file_path, lang)
 
     # Add the second part of the LaTeX header (Table of Contents and new page for main content)
     tex_master.append(LATEX_HEADER_PART2_TOC)
@@ -780,6 +787,11 @@ if __name__ == "__main__":
         type=str,
         help="Path to a raw text file for the epigraph page (optional)."
     )
+    parser.add_argument(
+        "--dedication_file",
+        type=str,
+        help="Path to a raw text file for the dedication page (optional)."
+    )
 
     args = parser.parse_args()
 
@@ -792,7 +804,8 @@ if __name__ == "__main__":
     generate_chess_book(args.pgn_file, args.output_dir, args.notation_type,
                         display_boards=args.display_boards,
                         board_scope=args.board_scope, lang=args.language,
-                        epigraph_file_path=args.epigraph_file)
+                        epigraph_file_path=args.epigraph_file,
+                        dedication_file_path=args.dedication_file)
 
     # 4. Compile the latex files with pdflatex
     compile_latex_to_pdf(args.output_dir, lang=args.language)
