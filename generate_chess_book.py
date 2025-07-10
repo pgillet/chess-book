@@ -103,11 +103,11 @@ MESSAGES = {
         'black_avg_cpl': 'Black Average CPL:',
         'mistakes_blunders': 'Mistakes & Blunders:',
         'blunders_text': 'Blunders',
-        'blunder_text_singular': 'Blunder', # Added singular form
+        'blunder_text_singular': 'Blunder',  # Added singular form
         'mistakes_text': 'Mistakes',
-        'mistake_text_singular': 'Mistake', # Added singular form
+        'mistake_text_singular': 'Mistake',  # Added singular form
         'inaccuracies_text': 'Inaccuracies',
-        'inaccuracy_text_singular': 'Inaccuracy', # Added singular form
+        'inaccuracy_text_singular': 'Inaccuracy',  # Added singular form
         'good_move_text': 'Good Move',
         'eval_text': 'Eval:',
         'best_move_text': 'Best:',
@@ -138,11 +138,11 @@ MESSAGES = {
         'black_avg_cpl': 'CPL Moyen des Noirs :',
         'mistakes_blunders': 'Erreurs et Gaffes :',
         'blunders_text': 'Gaffes',
-        'blunder_text_singular': 'Gaffe', # Added singular form
+        'blunder_text_singular': 'Gaffe',  # Added singular form
         'mistakes_text': 'Erreurs',
-        'mistake_text_singular': 'Erreur', # Added singular form
+        'mistake_text_singular': 'Erreur',  # Added singular form
         'inaccuracies_text': 'Imprécisions',
-        'inaccuracy_text_singular': 'Imprécision', # Added singular form
+        'inaccuracy_text_singular': 'Imprécision',  # Added singular form
         'good_move_text': 'Bon Coup',
         'eval_text': 'Éval. :',
         'best_move_text': 'Meilleur :',
@@ -200,11 +200,11 @@ def get_eval_string(score, lang='en'):
 def classify_move_loss(cpl, lang='en'):
     """Classifies a move based on Centipawn Loss (CPL)."""
     if cpl >= 200:
-        return f"\\textbf{{{MESSAGES[lang]['blunder_text_singular']}}}" # Use singular
+        return f"\\textbf{{{MESSAGES[lang]['blunder_text_singular']}}}"  # Use singular
     elif cpl >= 100:
-        return f"\\textbf{{{MESSAGES[lang]['mistake_text_singular']}}}" # Use singular
+        return f"\\textbf{{{MESSAGES[lang]['mistake_text_singular']}}}"  # Use singular
     elif cpl >= 50:
-        return MESSAGES[lang]['inaccuracy_text_singular'] # Use singular
+        return MESSAGES[lang]['inaccuracy_text_singular']  # Use singular
     return MESSAGES[lang]['good_move_text']
 
 
@@ -401,6 +401,9 @@ def _generate_analysis_summary_latex(analysis_data, lang='en'):
             \\end{{itemize}}
         \\end{{itemize}}
     """))
+
+    latex_lines.append(r"\vspace{\baselineskip}")
+
     return latex_lines
 
 
@@ -766,7 +769,6 @@ if __name__ == "__main__":
         type=str,
         help="Path to a raw text file for the epigraph page (optional)."
     )
-
 
     args = parser.parse_args()
 
