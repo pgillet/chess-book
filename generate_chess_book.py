@@ -643,6 +643,38 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
                 print(f"Error deleting auxiliary file {f}: {e}", file=sys.stderr)
 
 
+def _add_epigraph_to_latex(tex_master_list, epigraph_file_path, lang='en'):
+    """
+    Adds the epigraph content to the LaTeX master list if an epigraph file is provided.
+    """
+    if epigraph_file_path:
+        epigraph_path = Path(epigraph_file_path)
+        if epigraph_path.exists():
+            try:
+                with open(epigraph_path, 'r', encoding='utf-8') as f:
+                    epigraph_content = f.read()
+
+                epigraph_content_processed = escape_latex_special_chars(epigraph_content)
+                epigraph_content_processed = epigraph_content_processed.replace('\n\n', r"\par\noindent\vspace{\baselineskip}")
+                epigraph_content_processed = epigraph_content_processed.replace('\n', r"\\*")
+
+                formatted_epigraph = (
+                    r"\newpage" + "\n" +
+                    r"\thispagestyle{empty}" + "\n" + # No page number for epigraph
+                    r"\vspace*{.3\textheight}" + "\n" + # Start a third of the way down
+                    r"\begin{flushright}" + "\n" +
+                    r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
+                    epigraph_content_processed + "\n" +
+                    r"}" + "\n" +
+                    r"\end{flushright}" + "\n"
+                )
+                tex_master_list.append(formatted_epigraph)
+            except Exception as e:
+                print(f"Warning: Could not read epigraph file {epigraph_path}: {e}", file=sys.stderr)
+        else:
+            print(f"Warning: Epigraph file not found at {epigraph_path}", file=sys.stderr)
+
+
 def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine",
                         display_boards=False, board_scope="smart", lang='en',
                         epigraph_file_path=None):
@@ -661,29 +693,8 @@ def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine",
     # Start with the first part of the LaTeX header (preamble and \begin{document})
     tex_master = [LATEX_HEADER_PART1]
 
-    # --- ADD EPIGRAPH PAGE (IF SPECIFIED) ---
-    if epigraph_file_path:
-        epigraph_path = Path(epigraph_file_path)
-        if epigraph_path.exists():
-            try:
-                with open(epigraph_path, 'r', encoding='utf-8') as f:
-                    epigraph_content = f.read()
-                formatted_epigraph = (
-                    r"\newpage" + "\n" +
-                    r"\thispagestyle{empty}" + "\n" + # No page number for epigraph
-                    r"\vspace*{.3\textheight}" + "\n" + # Start a third of the way down
-                    r"\begin{flushright}" + "\n" +
-                    r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
-                    escape_latex_special_chars(epigraph_content).replace('\n', r"\\*") + "\n" +
-                    r"}" + "\n" +
-                    r"\end{flushright}" + "\n"
-                )
-                tex_master.append(formatted_epigraph)
-            except Exception as e:
-                print(f"Warning: Could not read epigraph file {epigraph_path}: {e}", file=sys.stderr)
-        else:
-            print(f"Warning: Epigraph file not found at {epigraph_path}", file=sys.stderr)
-    # --- END EPIGRAPH ADDITION ---
+    # Add epigraph page (if specified)
+    _add_epigraph_to_latex(tex_master, epigraph_file_path, lang)
 
     # Add the second part of the LaTeX header (Table of Contents and new page for main content)
     tex_master.append(LATEX_HEADER_PART2_TOC)
