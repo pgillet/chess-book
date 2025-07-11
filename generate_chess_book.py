@@ -592,7 +592,7 @@ def _generate_game_summary_latex(game, lang='en'):
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
     date_escaped = escape_latex_special_chars(formatted_date)
-    event_escaped = escape_latex_special_chars(f"event ({standard_tc})")
+    event_escaped = escape_latex_special_chars(f"{event} ({standard_tc})")
 
     # Use a star symbol from amssymb to denote the winner
     winner_symbol = r" $\star$"
