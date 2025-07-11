@@ -570,7 +570,6 @@ def _generate_game_summary_latex(game, lang='en'):
     latex_lines = []
     white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
     black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
-    # Use more descriptive defaults if PGN tags are missing
     date = game.headers.get("Date", "Unknown Date")
     # "Type of game" corresponds to the "Event" PGN tag.
     event = game.headers.get("Event", "Casual Game")
@@ -593,16 +592,10 @@ def _generate_game_summary_latex(game, lang='en'):
 
     # Add vertical space after the main section title.
     latex_lines.append(r"\vspace{0.5\baselineskip}")
-    latex_lines.append(r"\noindent")
-    latex_lines.append(r"\begin{tabularx}{\linewidth}{l r}")
 
-    # Line 1: White player and Date
-    latex_lines.append(fr"$\Box$ \textbf{{{white_escaped}}} & \textit{{{date_escaped}}} \\")
-
-    # Line 2: Black player and Event
-    latex_lines.append(fr"$\blacksquare$ \textbf{{{black_escaped}}} & \textit{{{event_escaped}}} \\")
-
-    latex_lines.append(r"\end{tabularx}")
+    # Use \noindent to prevent indentation and \hfill to push content apart.
+    latex_lines.append(fr"\noindent $\Box$ \textbf{{{white_escaped}}} \hfill \textit{{{date_escaped}}} \\")
+    latex_lines.append(fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}} \hfill \textit{{{event_escaped}}}")
 
     # Add a horizontal line separator after the summary box.
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
