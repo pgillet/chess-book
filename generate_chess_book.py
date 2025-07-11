@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
 import argparse
@@ -130,6 +131,7 @@ MESSAGES = {
         'latex_compile_complete': "LaTeX compilation complete. Cleaning up auxiliary files...",
         'front_matter_page_file_not_found': "Warning: file not found at {path}",
         'error_reading_front_matter_page': "Warning: Could not read file {path}: {e}",
+        'date_format': "%Y.%m.%d",
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -167,6 +169,7 @@ MESSAGES = {
         'latex_compile_complete': "Compilation LaTeX terminée. Nettoyage des fichiers auxiliaires...",
         'front_matter_page_file_not_found': "Avertissement : Fichier introuvable à {path}",
         'error_reading_front_matter_page': "Avertissement : Impossible de lire le fichier {path} : {e}",
+        'date_format': "%d.%m.%Y",
     }
 }
 
@@ -577,9 +580,18 @@ def _generate_game_summary_latex(game, lang='en'):
     time_control = game.headers.get("TimeControl", "?")
     standard_tc = translate_time_control(time_control)
 
+    formatted_date = ""
+    try:
+        # Attempt to parse the date from PGN (YYYY.MM.DD)
+        date_obj = datetime.strptime(date, "%Y.%m.%d").date()
+        formatted_date = date_obj.strftime(MESSAGES[lang]["date_format"])
+    except ValueError:
+        # If parsing fails, use the original string or a default
+        formatted_date = date
+
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
-    date_escaped = escape_latex_special_chars(date)
+    date_escaped = escape_latex_special_chars(formatted_date)
     event_escaped = escape_latex_special_chars(f"event ({standard_tc})")
 
     # Use a star symbol from amssymb to denote the winner
