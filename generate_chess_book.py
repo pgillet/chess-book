@@ -40,6 +40,7 @@ LATEX_HEADER_PART1 = dedent(r'''
     \usepackage{skak}
     \usepackage{scalerel}
     \usepackage{array} % Required for >{\centering\arraybackslash}
+    \usepackage{amssymb} % For \Box, \blacksquare, and \star symbols
     %\usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
     % \usepackage{utfsym} % For \usym command to display Unicode symbols
     % Redefine tabularxcolumn for vertical and horizontal centering within X columns
@@ -356,7 +357,9 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
 
     latex_lines.append("\\newpage")  # Always start a new game on a new page
     latex_lines.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
-    latex_lines.append("\\par\\vspace{\\baselineskip}")  # Added to ensure one line of space before notation
+
+    latex_lines.extend(_generate_game_summary_latex(game, lang))
+
     return latex_lines
 
 
@@ -557,6 +560,51 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
         latex_lines.append("\\vspace{2ex}")  # Add some vertical space between board pairs
         latex_lines.append(r"\end{minipage}")
+    return latex_lines
+
+
+def _generate_game_summary_latex(game, lang='en'):
+    """
+    Generates the LaTeX for the game's summary box (players, date, event).
+    """
+    latex_lines = []
+    white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
+    black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
+    # Use more descriptive defaults if PGN tags are missing
+    date = game.headers.get("Date", "Unknown Date")
+    # "Type of game" corresponds to the "Event" PGN tag.
+    event = game.headers.get("Event", "Casual Game")
+    result = game.headers.get("Result", "*")
+
+    white_escaped = escape_latex_special_chars(white)
+    black_escaped = escape_latex_special_chars(black)
+    date_escaped = escape_latex_special_chars(date)
+    event_escaped = escape_latex_special_chars(event)
+
+    # Use a star symbol from amssymb to denote the winner
+    winner_symbol = r" $\star$"
+
+    if result == "1-0":
+        white_escaped += winner_symbol
+    elif result == "0-1":
+        black_escaped += winner_symbol
+
+    # Add vertical space after the main section title.
+    latex_lines.append(r"\vspace{0.5\baselineskip}")
+    latex_lines.append(r"\noindent")
+    latex_lines.append(r"\begin{tabularx}{\linewidth}{l r}")
+
+    # Line 1: White player and Date
+    latex_lines.append(fr"$\Box$ \textbf{{{white_escaped}}} & \textit{{{date_escaped}}} \\")
+
+    # Line 2: Black player and Event
+    latex_lines.append(fr"$\blacksquare$ \textbf{{{black_escaped}}} & \textit{{{event_escaped}}} \\")
+
+    latex_lines.append(r"\end{tabularx}")
+
+    # Add a horizontal line separator after the summary box.
+    latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
+
     return latex_lines
 
 
