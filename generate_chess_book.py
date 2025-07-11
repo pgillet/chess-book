@@ -575,11 +575,13 @@ def _generate_game_summary_latex(game, lang='en'):
     # "Type of game" corresponds to the "Event" PGN tag.
     event = game.headers.get("Event", "Casual Game")
     result = game.headers.get("Result", "*")
+    time_control = game.headers.get("TimeControl", "?")
+    standard_tc = translate_time_control(time_control)
 
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
     date_escaped = escape_latex_special_chars(date)
-    event_escaped = escape_latex_special_chars(event)
+    event_escaped = escape_latex_special_chars(f"event ({standard_tc})")
 
     # Use a star symbol from amssymb to denote the winner
     winner_symbol = r" $\star$"
@@ -606,6 +608,57 @@ def _generate_game_summary_latex(game, lang='en'):
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
 
     return latex_lines
+
+
+def translate_time_control(non_standard_tc: str) -> str:
+    """
+    Translates a non-standard TimeControl string from sources like chess.com
+    into a more PGN-standard compliant format.
+
+    Args:
+        non_standard_tc: The TimeControl string from the PGN header.
+                         Examples: "600", "180+2", "1/86400".
+
+    Returns:
+        A PGN-compliant TimeControl string.
+        Examples: "600", "180+2", "86400", "?".
+    """
+    if not non_standard_tc:
+        return "?"  # Return 'unknown' for empty or None input
+
+    # Case 1: Handle Base + Increment format (e.g., "180+2")
+    if '+' in non_standard_tc:
+        try:
+            # Validate that both parts are integers
+            base, increment = map(int, non_standard_tc.split('+'))
+            # The format is already standard, so we return it as is.
+            return f"{base}+{increment}"
+        except ValueError:
+            # Handle malformed cases like "abc+123"
+            return "?"
+
+    # Case 2: Handle Correspondence format (e.g., "1/86400")
+    if '/' in non_standard_tc:
+        try:
+            # The standard representation is the time in seconds for the move block.
+            # We are interested in the seconds part.
+            parts = non_standard_tc.split('/')
+            seconds = int(parts[1])
+            return str(seconds)
+        except (ValueError, IndexError):
+            # Handle malformed cases like "1/" or "abc/def"
+            return "?"
+
+    # Case 3: Handle simple base time (e.g., "600")
+    try:
+        # If it's just a number, it represents the base time in seconds.
+        # This is already a valid standard format.
+        base_time = int(non_standard_tc)
+        return str(base_time)
+    except ValueError:
+        # If it's not a number and contains no symbols (e.g., "blitz"),
+        # it's an unknown format.
+        return "?"
 
 
 def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
