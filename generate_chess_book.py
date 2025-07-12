@@ -131,7 +131,17 @@ MESSAGES = {
         'latex_compile_complete': "LaTeX compilation complete. Cleaning up auxiliary files...",
         'front_matter_page_file_not_found': "Warning: file not found at {path}",
         'error_reading_front_matter_page': "Warning: Could not read file {path}: {e}",
-        'date_format': "%Y.%m.%d",
+        'date_format': "%B %d, %Y",
+        'fn_white_player': 'The white square denotes the player with the White pieces.',
+        'fn_black_player': 'The black square denotes the player with the Black pieces.',
+        'fn_winner': 'A star symbol appears next to the winner of the game.',
+        'fn_date': 'The date the game was played.',
+        'fn_event': 'The event or tournament name.',
+        'fn_time_control': 'The time control for the game (e.g., 60+1 means 60 seconds base time with a 1-second increment per move).',
+        'fn_notation': 'The game moves are listed in Standard Algebraic Notation. Figurine notation may be used for pieces.',
+        'fn_analysis_summary': 'A summary of the computer analysis, including average centipawn loss (CPL) for each player. Lower CPL is better.',
+        'fn_board_diagram': 'Board diagrams show the position after the indicated move. An analysis of the move and the computer\'s preferred alternative (if any) is shown below.',
+        'how_to_read_title': 'How to Read This Book',
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -169,9 +179,40 @@ MESSAGES = {
         'latex_compile_complete': "Compilation LaTeX terminée. Nettoyage des fichiers auxiliaires...",
         'front_matter_page_file_not_found': "Avertissement : Fichier introuvable à {path}",
         'error_reading_front_matter_page': "Avertissement : Impossible de lire le fichier {path} : {e}",
-        'date_format': "%d.%m.%Y",
+        'date_format': "%d %B %Y",
+        'months': ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre',
+                   'novembre', 'décembre'],
+        'fn_white_player': 'Le carré blanc indique le joueur avec les pièces blanches.',
+        'fn_black_player': 'Le carré noir indique le joueur avec les pièces noires.',
+        'fn_winner': 'Une étoile apparaît à côté du nom du vainqueur de la partie.',
+        'fn_date': 'La date à laquelle la partie a été jouée.',
+        'fn_event': 'Le nom de l\'événement ou du tournoi.',
+        'fn_time_control': 'Le contrôle de temps de la partie (par ex., 60+1 signifie 60 secondes de base avec un incrément de 1 seconde par coup).',
+        'fn_notation': 'Les coups de la partie en notation algébrique standard. La notation avec figurines peut être utilisée pour les pièces.',
+        'fn_analysis_summary': 'Un résumé de l\'analyse par ordinateur, incluant la perte moyenne de centipions (CPL) pour chaque joueur. Un CPL plus bas est meilleur.',
+        'fn_board_diagram': 'Les diagrammes d\'échiquier montrent la position après le coup indiqué. Une analyse du coup et l\'alternative préférée de l\'ordinateur (le cas échéant) sont affichées en dessous.',
+        'how_to_read_title': 'Comment Lire ce Livre',
     }
 }
+
+OPERA_GAME_PGN = """
+[Event "A night at the opera"]
+[Site "Paris FRA"]
+[Date "1858.11.02"]
+[EventDate "?"]
+[Round "?"]
+[Result "1-0"]
+[White "Paul Morphy"]
+[Black "Duke Karl / Count Isouard"]
+[ECO "C41"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[PlyCount "33"]
+
+1.e4 e5 2.Nf3 d6 3.d4 Bg4 4.dxe5 Bxf3 5.Qxf3 dxe5 6.Bc4 Nf6 7.Qb3 Qe7
+8.Nc3 c6 9.Bg5 b5 10.Nxb5 cxb5 11.Bxb5+ Nbd7 12.O-O-O Rd8
+13.Rxd7 Rxd7 14.Rd1 Qe6 15.Bxd7+ Nxd7 16.Qb8+ Nxb8 17.Rd8# 1-0
+"""
 
 
 def escape_latex_special_chars(text):
@@ -226,44 +267,35 @@ def analyze_game_with_stockfish(game, engine):
     moves = list(game.mainline_moves())
 
     for i, move in enumerate(moves):
-        # Analyze the position *before* the current move
-        # This gives us the ideal evaluation if the best move was played from this position.
         analysis_before_move = engine.analyse(board, chess.engine.Limit(depth=15))
 
         best_move_from_pos = analysis_before_move["pv"][0] if analysis_before_move["pv"] else None
-        ideal_eval_before_move = analysis_before_move[
-            "score"]  # Evaluation of current position (assuming optimal play from here)
+        ideal_eval_before_move = analysis_before_move["score"]
 
-        # Apply the played move to a temporary board to get its outcome evaluation
         temp_board_after_played_move = board.copy()
         temp_board_after_played_move.push(move)
         analysis_after_played_move = engine.analyse(temp_board_after_played_move, chess.engine.Limit(depth=15))
         eval_after_played_move = analysis_after_played_move["score"]
 
-        # Calculate centipawn loss (CPL)
         cpl = 0
         if not ideal_eval_before_move.is_mate() and not eval_after_played_move.is_mate():
-            # Get evaluations consistently from White's perspective
             ideal_cp_white_pov = ideal_eval_before_move.white().cp
             played_cp_white_pov = eval_after_played_move.white().cp
-
-            # CPL is how much the evaluation drops for the player whose turn it was
             if board.turn == chess.WHITE:
                 cpl = max(0, ideal_cp_white_pov - played_cp_white_pov)
-            else:  # Black's turn (higher score for White means worse for Black)
+            else:
                 cpl = max(0, played_cp_white_pov - ideal_cp_white_pov)
 
-        # Store results for the current move
         analysis_results.append({
-            'move_index': i,  # 0-indexed half-move number
+            'move_index': i,
             'played_move': move,
             'is_white_move': board.turn == chess.WHITE,
-            'engine_eval_before_played_move': ideal_eval_before_move,  # Eval of position before the played move
+            'engine_eval_before_played_move': ideal_eval_before_move,
             'engine_best_move_from_pos': best_move_from_pos,
-            'eval_after_played_move': eval_after_played_move,  # Eval of position after the played move
+            'eval_after_played_move': eval_after_played_move,
             'cpl_for_move': cpl,
         })
-        board.push(move)  # Advance board for next iteration
+        board.push(move)
 
     return analysis_results
 
@@ -271,33 +303,44 @@ def analyze_game_with_stockfish(game, engine):
 def _get_chess_figurine(piece_symbol, default_value="", inline=True):
     if inline:
         figurine_cmd = INLINE_CHESS_SYMBOL.get(piece_symbol, default_value)
-        figurine_cmd = "\scalerel*{" + figurine_cmd + "}{Xg}"
+        figurine_cmd = "\\scalerel*{" + figurine_cmd + "}{Xg}"
     else:
         figurine_cmd = UNICODE_CHESS_SYMBOL.get(piece_symbol, default_value)
 
     return figurine_cmd
 
 
-def _generate_game_notation_latex(game, notation_type):
-    notation_lines = []
+def format_pgn_date(pgn_date, lang='en'):
+    """Formats a PGN date string (YYYY.MM.DD) into a localized format."""
+    try:
+        date_obj = datetime.strptime(pgn_date, "%Y.%m.%d").date()
+        if 'months' in MESSAGES[lang]:
+            month_name = MESSAGES[lang]['months'][date_obj.month - 1]
+            if lang == 'fr':
+                return f"{date_obj.day} {month_name} {date_obj.year}"
+            else:  # Default to English format
+                return f"{month_name} {date_obj.day}, {date_obj.year}"
+        else:  # Fallback to specified format string
+            return date_obj.strftime(MESSAGES[lang]["date_format"])
+    except (ValueError, KeyError):
+        return pgn_date
+
+
+def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
+    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
+    notation_lines = [f"\\noindent{fn('fn_notation')}"]
     board = game.board()
     moves = list(game.mainline_moves())
 
-    notation_lines.append("\\noindent")
-    # Use tabularx for aligned columns:
-    # l: left-aligned column for move number
-    # l: left-aligned column for White's move
-    # l: left-aligned column for Black's move
+    if annotated and len(moves) > 16:
+        moves = moves[:16]
+
     notation_lines.append("\\begin{tabularx}{\\linewidth}{l l l}")
-
-    for i in range(0, len(moves), 2):  # Iterate through moves in pairs (White's move index)
+    for i in range(0, len(moves), 2):
         move_number = (i // 2) + 1
-
-        # White's move
-        white_move_str_latex = ""
         white_move = moves[i]
         white_san = board.san(white_move)
-
+        white_move_str_latex = ""
         if notation_type == "figurine":
             moving_piece = board.piece_at(white_move.from_square)
             if moving_piece and moving_piece.piece_type != chess.PAWN:
@@ -309,17 +352,13 @@ def _generate_game_notation_latex(game, notation_type):
                     white_move_str_latex = escape_latex_special_chars(white_san)
             else:
                 white_move_str_latex = escape_latex_special_chars(white_san)
-        else:  # Algebraic
+        else:
             white_move_str_latex = escape_latex_special_chars(white_san)
-
-        board.push(white_move)  # Apply White's move to board
-
-        # Black's move (if exists)
+        board.push(white_move)
         black_move_str_latex = ""
         if (i + 1) < len(moves):
             black_move = moves[i + 1]
             black_san = board.san(black_move)
-
             if notation_type == "figurine":
                 moving_piece = board.piece_at(black_move.from_square)
                 if moving_piece and moving_piece.piece_type != chess.PAWN:
@@ -331,16 +370,11 @@ def _generate_game_notation_latex(game, notation_type):
                         black_move_str_latex = escape_latex_special_chars(black_san)
                 else:
                     black_move_str_latex = escape_latex_special_chars(black_san)
-            else:  # Algebraic
+            else:
                 black_move_str_latex = escape_latex_special_chars(black_san)
-
-            board.push(black_move)  # Apply Black's move to board
-
-        # Construct the LaTeX row for this move pair using & for column separation
+            board.push(black_move)
         notation_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
-
-    notation_lines.append("\\end{tabularx}")  # End the tabularx environment
-
+    notation_lines.append("\\end{tabularx}")
     return notation_lines
 
 
@@ -359,34 +393,25 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
-    # Construct the title string that will be used for the TOC and header
     title_string = f"{white_escaped} vs {black_escaped} ({result}) - {header_escaped}"
 
-    latex_lines.append("\\newpage")  # Always start a new game on a new page
-
-    # Instead of printing a visible \section, we add its data invisibly.
-
-    # 1. Add the title to the Table of Contents.
+    latex_lines.append("\\newpage")
     latex_lines.append(f"\\addcontentsline{{toc}}{{section}}{{{title_string}}}")
-
-    # 2. Set the page header mark for this section.
     latex_lines.append(f"\\markright{{{title_string}}}")
-
-    # The game summary will now appear at the top of the page.
     latex_lines.extend(_generate_game_summary_latex(game, lang))
-
     return latex_lines
 
 
-def _generate_analysis_summary_latex(analysis_data, lang='en'):
+def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     """
     Generates the LaTeX for the analysis summary section (CPL, blunders, etc.).
     """
+    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
-        return latex_lines  # Return empty if no analysis data
+        return latex_lines
 
-    latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}")
+    latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}{fn('fn_analysis_summary')}")
 
     total_moves_analyzed = len(analysis_data)
     white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
@@ -400,14 +425,10 @@ def _generate_analysis_summary_latex(analysis_data, lang='en'):
 
     white_blunders = sum(1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 200)
     black_blunders = sum(1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 200)
-    white_mistakes = sum(
-        1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
-    black_mistakes = sum(
-        1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 100 and d['cpl_for_move'] < 200)
-    white_inaccuracies = sum(
-        1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
-    black_inaccuracies = sum(
-        1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 50 and d['cpl_for_move'] < 100)
+    white_mistakes = sum(1 for d in analysis_data if d['is_white_move'] and 100 <= d['cpl_for_move'] < 200)
+    black_mistakes = sum(1 for d in analysis_data if not d['is_white_move'] and 100 <= d['cpl_for_move'] < 200)
+    white_inaccuracies = sum(1 for d in analysis_data if d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
+    black_inaccuracies = sum(1 for d in analysis_data if not d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
 
     latex_lines.append(dedent(f"""
         \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
@@ -423,207 +444,129 @@ def _generate_analysis_summary_latex(analysis_data, lang='en'):
             \\end{{itemize}}
         \\end{{itemize}}
     """))
-
     latex_lines.append(r"\vspace{\baselineskip}")
-
     return latex_lines
 
 
-def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en'):
+def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False):
     """
     Generates the LaTeX for move-by-move board displays and their analysis.
     """
+    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
-        return latex_lines  # Return empty if no analysis data
+        return latex_lines
 
-    # Create a new board for displaying positions, starting from the game's initial position
     board_for_display = game.board()
     moves_list = list(game.mainline_moves())
 
-    # Stores (move_text, fen_after_white_move, marked_squares_white, white_analysis_data,
-    #          fen_after_black_move, marked_squares_black, black_analysis_data,
-    #          has_cpl_in_pair)
     all_calculated_move_pairs = []
-
-    for i in range(0, len(moves_list), 2):  # Iterate in steps of 2 (White and Black move pairs)
+    for i in range(0, len(moves_list), 2):
         current_move_pair_text = f"{(i // 2) + 1}."
-
-        fen1, marked_sq1 = "", ""
-        fen2, marked_sq2 = "", ""
-
+        fen1, marked_sq1, fen2, marked_sq2 = "", "", "", ""
         white_move_obj = moves_list[i] if i < len(moves_list) else None
         black_move_obj = moves_list[i + 1] if (i + 1) < len(moves_list) else None
-
         white_analysis_data = analysis_data[i] if white_move_obj and i < len(analysis_data) else None
         black_analysis_data = analysis_data[i + 1] if black_move_obj and (i + 1) < len(analysis_data) else None
-
-        has_cpl_in_pair = False
-        if white_analysis_data and white_analysis_data['cpl_for_move'] > 0:
-            has_cpl_in_pair = True
-        if black_analysis_data and black_analysis_data['cpl_for_move'] > 0:
-            has_cpl_in_pair = True
-
-        # Process White's move
+        has_cpl_in_pair = (white_analysis_data and white_analysis_data['cpl_for_move'] > 0) or \
+                          (black_analysis_data and black_analysis_data['cpl_for_move'] > 0)
         if white_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
-
-            # Determine marked squares for White's move
             if board_for_display.is_castling(white_move_obj):
                 king_from_sq = white_move_obj.from_square
-                # The board's turn is WHITE before white_move_obj is pushed
-                if board_for_display.is_kingside_castling(white_move_obj):
-                    rook_from_sq = chess.H1
-                else:  # Queenside castling
-                    rook_from_sq = chess.A1
+                rook_from_sq = chess.H1 if board_for_display.is_kingside_castling(white_move_obj) else chess.A1
                 marked_sq1 = f"{{ {chess.square_name(king_from_sq)}, {chess.square_name(rook_from_sq)} }}"
             else:
                 marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
-
-            board_for_display.push(white_move_obj)  # Now board_for_display reflects state AFTER white's move
+            board_for_display.push(white_move_obj)
             fen1 = board_for_display.board_fen()
-
-        # Process Black's move (if exists)
         if black_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
-
-            # Determine marked squares for Black's move
-            # At this point, board_for_display is in the state *after white's move* and *before black's move*.
-            # Its turn is correctly BLACK.
             if board_for_display.is_castling(black_move_obj):
                 king_from_sq = black_move_obj.from_square
-                if board_for_display.is_kingside_castling(black_move_obj):
-                    rook_from_sq = chess.H8
-                else:  # Queenside castling
-                    rook_from_sq = chess.A8
+                rook_from_sq = chess.H8 if board_for_display.is_kingside_castling(black_move_obj) else chess.A8
                 marked_sq2 = f"{{ {chess.square_name(king_from_sq)}, {chess.square_name(rook_from_sq)} }}"
             else:
                 marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
-
             board_for_display.push(black_move_obj)
             fen2 = board_for_display.board_fen()
         else:
-            # If no black move, the second board should show the position after white's move
-            fen2 = fen1
-            marked_sq2 = ""  # No black move to mark squares for
+            fen2, marked_sq2 = fen1, ""
+        all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2,
+                                          marked_sq2, black_analysis_data, has_cpl_in_pair))
 
-        all_calculated_move_pairs.append((
-            current_move_pair_text,
-            fen1, marked_sq1, white_analysis_data,
-            fen2, marked_sq2, black_analysis_data,
-            has_cpl_in_pair
-        ))
+    move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
+                                                                                    all_calculated_move_pairs if
+                                                                                    pair[7]]
+    if annotated:
+        move_pairs_to_display = all_calculated_move_pairs[5:6]
 
-    move_pairs_to_display = []
-    if board_scope == "all":
-        move_pairs_to_display = all_calculated_move_pairs
-    else:  # board_scope == "smart"
-        # In 'smart' mode, we only display pairs where at least one move had CPL (i.e., was not perfect)
-        for pair_data in all_calculated_move_pairs:
-            if pair_data[7]:  # Check has_cpl_in_pair flag
-                move_pairs_to_display.append(pair_data)
-
-    # Now, iterate through the (potentially filtered) collected move pairs and generate LaTeX
     for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
             move_pairs_to_display):
-        latex_lines.append(r"\begin{minipage}{\linewidth}")
+        footnote = fn('fn_board_diagram') if i == 0 and annotated else ""
+        latex_lines.append(f"\\begin{{minipage}}{{\\linewidth}}{footnote}")
         latex_lines.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-
-        # White's move board (state AFTER White's move)
         latex_lines.append(
             f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
-
-        # Black's move board (state AFTER Black's move) - ONLY display if black move exists
         if marked_sq2:
             latex_lines.append(
                 f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
         else:
-            latex_lines.append("\\\\")  # Just close the row if no black board
-
+            latex_lines.append("\\\\")
         latex_lines.append("\\end{tabularx}")
-
-        # --- Add Move-by-Move Analysis below boards ---
-        if white_analysis or black_analysis:  # Only add this section if there's analysis data
+        if white_analysis or black_analysis:
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-
-            # First line: Eval scores
             white_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(white_analysis['eval_after_played_move'], lang)}}}" if white_analysis else ""
             black_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(black_analysis['eval_after_played_move'], lang)}}}" if black_analysis else ""
             latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
-
-            # Second line: Best move / CPL details
-            white_details_line = ""
-            if white_analysis:
-                if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
-                        white_analysis['engine_eval_before_played_move'].is_mate():
-                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
-                else:
-                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-
-            black_details_line = ""
-            if black_analysis:
-                if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
-                        black_analysis['engine_eval_before_played_move'].is_mate():
-                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
-                else:
-                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-
+            white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
+            if white_analysis and white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
+            white_analysis['engine_eval_before_played_move'].is_mate():
+                white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
+            black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
+            if black_analysis and black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
+            black_analysis['engine_eval_before_played_move'].is_mate():
+                black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
             latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
-
             latex_lines.append("\\end{tabularx}")
-
-        latex_lines.append("\\vspace{2ex}")  # Add some vertical space between board pairs
+        latex_lines.append("\\vspace{2ex}")
         latex_lines.append(r"\end{minipage}")
     return latex_lines
 
 
-def _generate_game_summary_latex(game, lang='en'):
+def _generate_game_summary_latex(game, lang='en', annotated=False):
     """
     Generates the LaTeX for the game's summary box (players, date, event).
     """
+    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
     black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
     date = game.headers.get("Date", "Unknown Date")
-    # "Type of game" corresponds to the "Event" PGN tag.
     event = game.headers.get("Event", "Casual Game")
     result = game.headers.get("Result", "*")
     time_control = game.headers.get("TimeControl", "?")
     standard_tc = translate_time_control(time_control)
-
-    formatted_date = ""
-    try:
-        # Attempt to parse the date from PGN (YYYY.MM.DD)
-        date_obj = datetime.strptime(date, "%Y.%m.%d").date()
-        formatted_date = date_obj.strftime(MESSAGES[lang]["date_format"])
-    except ValueError:
-        # If parsing fails, use the original string or a default
-        formatted_date = date
-
+    formatted_date = format_pgn_date(date, lang)
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
     date_escaped = escape_latex_special_chars(formatted_date)
-    event_escaped = escape_latex_special_chars(f"{event} ({standard_tc})")
-
-    # Use a star symbol from amssymb to denote the winner
+    event_escaped = escape_latex_special_chars(event)
+    tc_escaped = escape_latex_special_chars(f"({standard_tc})")
     winner_symbol = r" $\star$"
-
+    if annotated:
+        winner_symbol += fn('fn_winner')
     if result == "1-0":
         white_escaped += winner_symbol
     elif result == "0-1":
         black_escaped += winner_symbol
-
-    # Add vertical space after the main section title.
     latex_lines.append(r"\vspace{0.5\baselineskip}")
-
-    # Use \noindent to prevent indentation and \hfill to push content apart.
-    latex_lines.append(fr"\noindent $\Box$ \textbf{{{white_escaped}}} \hfill \textit{{{date_escaped}}} \\")
-    latex_lines.append(fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}} \hfill \textit{{{event_escaped}}}")
-
-    # Add a horizontal line separator after the summary box.
+    white_line = fr"\noindent $\Box$ \textbf{{{white_escaped}}}{fn('fn_white_player')} \hfill \textit{{{date_escaped}}}{fn('fn_date')} \\"
+    black_line = fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}}{fn('fn_black_player')} \hfill \textit{{{event_escaped}}}{fn('fn_event')} {tc_escaped}{fn('fn_time_control')}"
+    latex_lines.append(white_line)
+    latex_lines.append(black_line)
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
-
     return latex_lines
 
 
@@ -631,83 +574,81 @@ def translate_time_control(non_standard_tc: str) -> str:
     """
     Translates a non-standard TimeControl string from sources like chess.com
     into a more PGN-standard compliant format.
-
-    Args:
-        non_standard_tc: The TimeControl string from the PGN header.
-                         Examples: "600", "180+2", "1/86400".
-
-    Returns:
-        A PGN-compliant TimeControl string.
-        Examples: "600", "180+2", "86400", "?".
     """
     if not non_standard_tc:
-        return "?"  # Return 'unknown' for empty or None input
-
-    # Case 1: Handle Base + Increment format (e.g., "180+2")
+        return "?"
     if '+' in non_standard_tc:
         try:
-            # Validate that both parts are integers
             base, increment = map(int, non_standard_tc.split('+'))
-            # The format is already standard, so we return it as is.
             return f"{base}+{increment}"
         except ValueError:
-            # Handle malformed cases like "abc+123"
             return "?"
-
-    # Case 2: Handle Correspondence format (e.g., "1/86400")
     if '/' in non_standard_tc:
         try:
-            # The standard representation is the time in seconds for the move block.
-            # We are interested in the seconds part.
             parts = non_standard_tc.split('/')
             seconds = int(parts[1])
             return str(seconds)
         except (ValueError, IndexError):
-            # Handle malformed cases like "1/" or "abc/def"
             return "?"
-
-    # Case 3: Handle simple base time (e.g., "600")
     try:
-        # If it's just a number, it represents the base time in seconds.
-        # This is already a valid standard format.
         base_time = int(non_standard_tc)
         return str(base_time)
     except ValueError:
-        # If it's not a number and contains no symbols (e.g., "blitz"),
-        # it's an unknown format.
         return "?"
 
 
 def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
-                         display_boards=False, board_scope="smart", lang='en'):
+                         display_boards=False, board_scope="smart", lang='en', annotated=False):
     """
-    Exports a single chess game, its notation, analysis summary, and optional move-by-move
-    boards with analysis to a LaTeX file. This is the orchestrator method.
+    Exports a single chess game to a LaTeX file, now with annotation support.
     """
     latex = []
+    if annotated:
+        latex.extend(_generate_game_summary_latex(game, lang, annotated=True))
+    else:
+        latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
-    # 1. Add game metadata
-    latex.extend(_generate_game_metadata_latex(game, game_index, lang))
-
-    # Start a minipage to keep notation and summary together
     latex.append(r"\begin{minipage}{\linewidth}")
-
-    # 2. Add game notation
-    latex.extend(_generate_game_notation_latex(game, notation_type))
-
-    # 3. Add game statistics section (analysis summary)
-    latex.extend(_generate_analysis_summary_latex(analysis_data, lang))
-
-    # End the minipage
+    latex.extend(_generate_game_notation_latex(game, notation_type, lang, annotated=annotated))
+    latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
     latex.append(r"\end{minipage}")
 
-    # 4. Add move-by-move board analysis (if enabled)
     if display_boards:
-        latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang))
+        latex.extend(
+            _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
 
-    game_file = output_dir / f"game_{game_index:03}.tex"
-    with open(game_file, "w") as f:
+    file_name = "how_to_read_example.tex" if annotated else f"game_{game_index:03}.tex"
+    with open(output_dir / file_name, "w", encoding='utf-8') as f:
         f.write("\n".join(latex))
+
+
+def generate_how_to_read_section(tex_master, args, output_dir, engine):
+    """Generates the 'How to Read This Book' section using footnotes."""
+    import io
+    lang = args.language
+    print("Generating 'How to Read This Book' section...")
+    title = MESSAGES[lang]['how_to_read_title']
+
+    # Create an invisible chapter entry in the TOC and page headers
+    tex_master.append(f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}")
+    tex_master.append(f"\\markboth{{{title}}}{{{title}}}")
+
+    # Parse the example game
+    pgn_io = io.StringIO(OPERA_GAME_PGN)
+    game = chess.pgn.read_game(pgn_io)
+    analysis_data = []
+    if engine:
+        analysis_data = analyze_game_with_stockfish(game, engine)
+
+    # Export the game with footnotes enabled
+    export_game_to_latex(
+        game, 0, output_dir, analysis_data, args.notation_type,
+        display_boards=args.display_boards, board_scope=args.board_scope,
+        lang=lang, annotated=True
+    )
+
+    tex_master.append(r"\input{how_to_read_example.tex}")
+    tex_master.append(r"\cleardoublepage")
 
 
 def delete_output_directory(output_dir_path, lang='en'):
@@ -732,21 +673,19 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
         return
 
     print(MESSAGES[lang]['compiling_latex'].format(output_dir=output_dir))
-    # Compile multiple times for TOC and references
-    for i in range(LATEX_COMPILE_PASSES):  # Usually 2-3 runs are sufficient
+    for i in range(LATEX_COMPILE_PASSES):
         try:
             result = subprocess.run(
                 ["pdflatex", "-interaction=nonstopmode", main_tex_file],
                 cwd=output_dir,
                 capture_output=True,
                 text=True,
-                check=False  # Do not raise exception for non-zero exit code, we check it manually
+                check=False
             )
             if result.returncode != 0:
                 print(MESSAGES[lang]['latex_compile_failed'].format(pass_num=i + 1), file=sys.stderr)
                 print(result.stdout, file=sys.stderr)
                 print(result.stderr, file=sys.stderr)
-                # Continue for multiple passes even if one fails, to get more errors
         except FileNotFoundError:
             print(MESSAGES[lang]['pdflatex_not_found'], file=sys.stderr)
             sys.exit(1)
@@ -755,10 +694,10 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
             sys.exit(1)
 
     print(MESSAGES[lang]['latex_compile_complete'])
-    # Clean up auxiliary files
     aux_extensions = ['.aux', '.log', '.lof', '.toc', '.out', '.fls', '.fdb_latexmk', '.synctex.gz']
     for f in output_dir.iterdir():
-        if f.suffix in aux_extensions or (f.is_file() and f.name.startswith("game_") and f.suffix == '.tex'):
+        if f.suffix in aux_extensions or (f.is_file() and (
+                f.name.startswith("game_") or f.name == "how_to_read_example.tex") and f.suffix == '.tex'):
             try:
                 f.unlink()
             except OSError as e:
@@ -768,7 +707,6 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
 def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
     """
     Adds the front matter content to the LaTeX master list if a file is provided.
-    This version correctly preserves blank lines from the source file.
     """
     if file_path:
         content_path = Path(file_path)
@@ -778,16 +716,9 @@ def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
                     content = f.read()
 
                 content_processed = escape_latex_special_chars(content)
-
-                # 1. Normalize multiple blank lines into a single standard paragraph break.
                 while '\n\n\n' in content_processed:
                     content_processed = content_processed.replace('\n\n\n', '\n\n')
-
-                # 2. Replace the standard paragraph break ('\n\n') with LaTeX commands.
-                #    The new string is safer and ensures a space is kept before the next word.
                 content_processed = content_processed.replace('\n\n', r"\par\vspace{\baselineskip}\noindent ")
-
-                # 3. Replace the remaining single newlines with a forced line break.
                 content_processed = content_processed.replace('\n', r"\\* ")
 
                 formatted_content = (
@@ -807,67 +738,56 @@ def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
             print(MESSAGES[lang]['front_matter_page_file_not_found'].format(path=content_path), file=sys.stderr)
 
 
-def generate_chess_book(pgn_path, output_dir_path, notation_type="figurine",
-                        display_boards=False, board_scope="smart", lang='en',
-                        epigraph_file_path=None, dedication_file_path=None):
-    pgn_path = Path(pgn_path)
-    output_dir = Path(output_dir_path)
+def generate_chess_book(args):
+    """
+    Orchestrates the creation of the chess book from command-line arguments.
+    """
+    output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(pgn_path) as f:
-        games = []
-        while True:
-            game = chess.pgn.read_game(f)
-            if game is None:
-                break
-            games.append(game)
+    with open(args.pgn_file) as f:
+        games = [game for game in iter(lambda: chess.pgn.read_game(f), None)]
 
-    # Start with the first part of the LaTeX header (preamble and \begin{document})
     tex_master = [LATEX_HEADER_PART1]
-
-    # Add dedication page (if specified)
-    _add_front_matter_page_to_latex(tex_master, dedication_file_path, lang)
-
-    # Add epigraph page (if specified)
-    _add_front_matter_page_to_latex(tex_master, epigraph_file_path, lang)
-
-    # Add the second part of the LaTeX header (Table of Contents and new page for main content)
+    _add_front_matter_page_to_latex(tex_master, args.dedication_file, args.language)
+    _add_front_matter_page_to_latex(tex_master, args.epigraph_file, args.language)
     tex_master.append(LATEX_HEADER_PART2_TOC)
 
-    # Initialize engine once for all games
     engine = None
     try:
         engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-        # Configure engine for multi-threading and hash table size for better performance
         engine.configure({"Threads": 2, "Hash": 128})
     except Exception as e:
-        print(MESSAGES[lang]['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
-        print(MESSAGES[lang]['analysis_disabled_warning'])
-        engine = None
+        print(MESSAGES[args.language]['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
+        print(MESSAGES[args.language]['analysis_disabled_warning'])
+
+    if args.how_to_read:
+        generate_how_to_read_section(tex_master, args, output_dir, engine)
 
     for idx, game in enumerate(games):
         try:
-            print(MESSAGES[lang]['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
-
+            print(MESSAGES[args.language]['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
             analysis_data = []
             if engine:
                 analysis_data = analyze_game_with_stockfish(game, engine)
             else:
-                print(MESSAGES[lang]['skipping_stockfish_analysis'].format(game_num=idx + 1))
+                print(MESSAGES[args.language]['skipping_stockfish_analysis'].format(game_num=idx + 1))
 
-            export_game_to_latex(game, idx + 1, output_dir, analysis_data, notation_type, show_mover=False, # show_mover is hardcoded to false
-                                 display_boards=display_boards,
-                                 board_scope=board_scope, lang=lang)
+            export_game_to_latex(
+                game, idx + 1, output_dir, analysis_data, args.notation_type,
+                display_boards=args.display_boards,
+                board_scope=args.board_scope, lang=args.language
+            )
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
-            print(MESSAGES[lang]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
+            print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
 
     tex_master.append(LATEX_FOOTER)
-    with open(output_dir / "chess_book.tex", "w") as f:
+    with open(output_dir / "chess_book.tex", "w", encoding='utf-8') as f:
         f.write("\n".join(tex_master))
 
     if engine:
-        engine.quit()  # Close engine when done with all games
+        engine.quit()
 
 
 if __name__ == "__main__":
@@ -920,20 +840,14 @@ if __name__ == "__main__":
         type=str,
         help="Path to a raw text file for the dedication page (optional)."
     )
+    parser.add_argument(
+        "--how_to_read",
+        action="store_true",
+        help="Adds a 'How to Read This Book' section using footnotes."
+    )
 
     args = parser.parse_args()
 
-    # 1. Parse command line args (already done by argparse)
-
-    # 2. Delete the output directory if it exists
     delete_output_directory(args.output_dir, args.language)
-
-    # 3. Run generate_chess_book
-    generate_chess_book(args.pgn_file, args.output_dir, args.notation_type,
-                        display_boards=args.display_boards,
-                        board_scope=args.board_scope, lang=args.language,
-                        epigraph_file_path=args.epigraph_file,
-                        dedication_file_path=args.dedication_file)
-
-    # 4. Compile the latex files with pdflatex
+    generate_chess_book(args)
     compile_latex_to_pdf(args.output_dir, lang=args.language)
