@@ -756,6 +756,7 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
 def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
     """
     Adds the front matter content to the LaTeX master list if a file is provided.
+    This version correctly preserves blank lines from the source file.
     """
     if file_path:
         content_path = Path(file_path)
@@ -765,18 +766,27 @@ def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
                     content = f.read()
 
                 content_processed = escape_latex_special_chars(content)
-                content_processed = content_processed.replace('\n\n', r"\par\noindent\vspace{\baselineskip}")
-                content_processed = content_processed.replace('\n', r"\\*")
+
+                # 1. Normalize multiple blank lines into a single standard paragraph break.
+                while '\n\n\n' in content_processed:
+                    content_processed = content_processed.replace('\n\n\n', '\n\n')
+
+                # 2. Replace the standard paragraph break ('\n\n') with LaTeX commands.
+                #    The new string is safer and ensures a space is kept before the next word.
+                content_processed = content_processed.replace('\n\n', r"\par\vspace{\baselineskip}\noindent ")
+
+                # 3. Replace the remaining single newlines with a forced line break.
+                content_processed = content_processed.replace('\n', r"\\* ")
 
                 formatted_content = (
-                    r"\newpage" + "\n" +
-                    r"\thispagestyle{empty}" + "\n" + # No page number for front matter
-                    r"\vspace*{.3\textheight}" + "\n" + # Start a third of the way down
-                    r"\begin{flushright}" + "\n" +
-                    r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
-                    content_processed + "\n" +
-                    r"}" + "\n" +
-                    r"\end{flushright}" + "\n"
+                        r"\newpage" + "\n" +
+                        r"\thispagestyle{empty}" + "\n" +
+                        r"\vspace*{.3\textheight}" + "\n" +
+                        r"\begin{flushright}" + "\n" +
+                        r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
+                        content_processed + "\n" +
+                        r"}" + "\n" +
+                        r"\end{flushright}" + "\n"
                 )
                 tex_master_list.append(formatted_content)
             except Exception as e:
