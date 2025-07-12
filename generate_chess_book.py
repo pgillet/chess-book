@@ -647,7 +647,11 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
         lang=lang, annotated=True
     )
 
+    # Input the generated file into the master document
     tex_master.append(r"\input{how_to_read_example.tex}")
+
+    # Force a blank page with no headers or footers, then ensure proper book layout
+    tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
     tex_master.append(r"\cleardoublepage")
 
 
