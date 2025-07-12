@@ -138,9 +138,11 @@ MESSAGES = {
         'fn_date': 'The date the game was played.',
         'fn_event': 'The event or tournament name.',
         'fn_time_control': 'The time control for the game (e.g., 60+1 means 60 seconds base time with a 1-second increment per move).',
-        'fn_notation': 'The game moves are listed in Standard Algebraic Notation. Figurine notation may be used for pieces.',
+        'fn_notation_algebraic': 'The game moves are listed in Standard Algebraic Notation.',
+        'fn_notation_figurine': 'The game moves are listed in figurine notation, where a symbol represents each piece.',
         'fn_analysis_summary': 'A summary of the computer analysis, including average centipawn loss (CPL) for each player. Lower CPL is better.',
-        'fn_board_diagram': 'Board diagrams show the position after the indicated move. An analysis of the move and the computer\'s preferred alternative (if any) is shown below.',
+        'fn_board_diagram_all': 'Board diagrams are shown for every move pair. The board on the left shows the position after White\'s move, and the board on the right shows the position after Black\'s response. The start and end squares of each move are highlighted.',
+        'fn_board_diagram_smart': 'Board diagrams are only shown for "smart" move pairs, where at least one move was interesting or inaccurate. The board on the left shows the position after White\'s move, and the board on the right is after Black\'s response. The start and end squares of each move are highlighted.',
         'how_to_read_title': 'How to Read This Book',
     },
     'fr': {
@@ -188,9 +190,11 @@ MESSAGES = {
         'fn_date': 'La date à laquelle la partie a été jouée.',
         'fn_event': 'Le nom de l\'événement ou du tournoi.',
         'fn_time_control': 'Le contrôle de temps de la partie (par ex., 60+1 signifie 60 secondes de base avec un incrément de 1 seconde par coup).',
-        'fn_notation': 'Les coups de la partie en notation algébrique standard. La notation avec figurines peut être utilisée pour les pièces.',
+        'fn_notation_algebraic': 'Les coups de la partie sont listés en notation algébrique standard.',
+        'fn_notation_figurine': 'Les coups de la partie sont listés en notation figurine, où un symbole représente chaque pièce.',
         'fn_analysis_summary': 'Un résumé de l\'analyse par ordinateur, incluant la perte moyenne de centipions (CPL) pour chaque joueur. Un CPL plus bas est meilleur.',
-        'fn_board_diagram': 'Les diagrammes d\'échiquier montrent la position après le coup indiqué. Une analyse du coup et l\'alternative préférée de l\'ordinateur (le cas échéant) sont affichées en dessous.',
+        'fn_board_diagram_all': 'Les diagrammes d\'échiquier sont affichés pour chaque paire de coups. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
+        'fn_board_diagram_smart': 'Les diagrammes d\'échiquier ne sont affichés que pour les paires de coups "intelligentes", où au moins un coup était intéressant ou imprécis. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite est après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
         'how_to_read_title': 'Comment Lire ce Livre',
     }
 }
@@ -327,8 +331,13 @@ def format_pgn_date(pgn_date, lang='en'):
 
 
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
-    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
-    notation_lines = [f"\\noindent{fn('fn_notation')}"]
+    """Generates the LaTeX for the game notation."""
+    footnote = ""
+    if annotated:
+        key = 'fn_notation_figurine' if notation_type == 'figurine' else 'fn_notation_algebraic'
+        footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
+
+    notation_lines = [f"\\noindent{footnote}"]
     board = game.board()
     moves = list(game.mainline_moves())
 
@@ -452,14 +461,12 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     """
     Generates the LaTeX for move-by-move board displays and their analysis.
     """
-    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
         return latex_lines
 
     board_for_display = game.board()
     moves_list = list(game.mainline_moves())
-
     all_calculated_move_pairs = []
     for i in range(0, len(moves_list), 2):
         current_move_pair_text = f"{(i // 2) + 1}."
@@ -503,7 +510,11 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
     for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
             move_pairs_to_display):
-        footnote = fn('fn_board_diagram') if i == 0 and annotated else ""
+        footnote = ""
+        if i == 0 and annotated:
+            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
+            footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
+
         latex_lines.append(f"\\begin{{minipage}}{{\\linewidth}}{footnote}")
         latex_lines.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
