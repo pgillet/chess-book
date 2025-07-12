@@ -469,6 +469,8 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     latex_lines.append(r"\end{tabularx}")
     latex_lines.append(r"\vspace{\baselineskip}")
 
+    latex_lines.append(r"\par\vspace{\baselineskip}")
+
     return latex_lines
 
 
@@ -476,6 +478,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     """
     Generates the LaTeX for move-by-move board displays and their analysis.
     """
+    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
         return latex_lines
@@ -514,30 +517,25 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             fen2 = board_for_display.board_fen()
         else:
             fen2, marked_sq2 = fen1, ""
-        all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2,
-                                          marked_sq2, black_analysis_data, has_cpl_in_pair))
+        all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2, marked_sq2, black_analysis_data, has_cpl_in_pair))
 
-    move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
-                                                                                    all_calculated_move_pairs if
-                                                                                    pair[7]]
+    move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in all_calculated_move_pairs if pair[7]]
     if annotated:
         move_pairs_to_display = all_calculated_move_pairs[5:6]
 
-    for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
-            move_pairs_to_display):
+    for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(move_pairs_to_display):
         footnote = ""
         if i == 0 and annotated:
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
             footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
 
-        latex_lines.append(f"\\begin{{minipage}}{{\\linewidth}}{footnote}")
-        latex_lines.append(f"\\textbf{{{move_text}}} \\\\[0.5ex]")
+        # The footnote is now attached to the move text, which is outside the minipage's direct influence.
+        latex_lines.append(f"\\textbf{{{move_text}}}{footnote} \\\\[0.5ex]")
+        latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-        latex_lines.append(
-            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
+        latex_lines.append(f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
         if marked_sq2:
-            latex_lines.append(
-                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+            latex_lines.append(f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
         else:
             latex_lines.append("\\\\")
         latex_lines.append("\\end{tabularx}")
@@ -547,19 +545,16 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             black_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(black_analysis['eval_after_played_move'], lang)}}}" if black_analysis else ""
             latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
             white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-            if white_analysis and white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
-            white_analysis['engine_eval_before_played_move'].is_mate():
+            if white_analysis and white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not white_analysis['engine_eval_before_played_move'].is_mate():
                 white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
             black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-            if black_analysis and black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
-            black_analysis['engine_eval_before_played_move'].is_mate():
+            if black_analysis and black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not black_analysis['engine_eval_before_played_move'].is_mate():
                 black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
             latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
             latex_lines.append("\\end{tabularx}")
         latex_lines.append("\\vspace{2ex}")
         latex_lines.append(r"\end{minipage}")
     return latex_lines
-
 
 def _generate_game_summary_latex(game, lang='en', annotated=False):
     """
@@ -630,18 +625,17 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     """
     latex = []
     if annotated:
+        # For the annotated example, we don't need the standard metadata header
         latex.extend(_generate_game_summary_latex(game, lang, annotated=True))
     else:
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
-    latex.append(r"\begin{minipage}{\linewidth}")
+    # The minipage wrapper is removed to allow footnotes to appear at the page bottom.
     latex.extend(_generate_game_notation_latex(game, notation_type, lang, annotated=annotated))
     latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
-    latex.append(r"\end{minipage}")
 
     if display_boards:
-        latex.extend(
-            _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
+        latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
 
     file_name = "how_to_read_example.tex" if annotated else f"game_{game_index:03}.tex"
     with open(output_dir / file_name, "w", encoding='utf-8') as f:
