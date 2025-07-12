@@ -427,7 +427,8 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
 
 def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     """
-    Generates the LaTeX for the analysis summary section, formatted as a table.
+    Generates the LaTeX for the analysis summary section, formatted as a table
+    with a guaranteed empty line of separation above it.
     """
     fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     if not analysis_data:
@@ -450,29 +451,18 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
     # --- Table Generation Logic ---
     latex_lines = []
-    latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}{fn('fn_analysis_summary')}")
+    # Use \par to force a paragraph break, which creates a clean vertical space.
+    latex_lines.append(r"\par\vspace{\baselineskip}")
 
-    header_metric = f"\\textbf{{{MESSAGES[lang]['table_metric']}}}"
+    header_metric = ""
     header_white = f"\\textbf{{{MESSAGES[lang]['table_white']}}}"
     header_black = f"\\textbf{{{MESSAGES[lang]['table_black']}}}"
 
+    avg_cpl_label = MESSAGES[lang]['table_avg_cpl'] + fn('fn_analysis_summary')
+
     latex_lines.append(r"\begin{tabularx}{\linewidth}{l c c}")
-    # Replace \hline with \cline for partial lines. Note the escaped braces for f-string.
     latex_lines.append(f"{header_metric} & {header_white} & {header_black} \\\\ \\cline{{1-1}} \\cline{{2-3}}")
-    latex_lines.append(f"{MESSAGES[lang]['table_avg_cpl']} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
-    latex_lines.append(f"{MESSAGES[lang]['table_blunders']} & {white_blunders} & {black_blunders} \\\\")
-    latex_lines.append(f"{MESSAGES[lang]['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
-    latex_lines.append(f"{MESSAGES[lang]['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
-    latex_lines.append(r"\end{tabularx}")
-    latex_lines.append(r"\vspace{\baselineskip}")
-
-    return latex_lines
-
-    # Use a tabularx environment for a table that spans the full text width.
-    # 'l' for left-aligned metric names, 'c' for centered data.
-    latex_lines.append(r"\begin{tabularx}{\linewidth}{l c c}")
-    latex_lines.append(f"{header_metric} & {header_white} & {header_black} \\\\ \\hline") # Headers with a line underneath
-    latex_lines.append(f"{MESSAGES[lang]['table_avg_cpl']} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
+    latex_lines.append(f"{avg_cpl_label} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
     latex_lines.append(f"{MESSAGES[lang]['table_blunders']} & {white_blunders} & {black_blunders} \\\\")
     latex_lines.append(f"{MESSAGES[lang]['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
     latex_lines.append(f"{MESSAGES[lang]['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
