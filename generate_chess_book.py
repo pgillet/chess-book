@@ -346,7 +346,8 @@ def _generate_game_notation_latex(game, notation_type):
 
 def _generate_game_metadata_latex(game, game_index, lang='en'):
     """
-    Generates the LaTeX for the game's metadata section (title, players, result).
+    Generates the LaTeX for the game's metadata section.
+    The section title is made invisible but is added to the TOC and page headers.
     """
     latex_lines = []
     header = game.headers.get("Event", MESSAGES[lang]['game_event_default'])
@@ -358,9 +359,20 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
 
-    latex_lines.append("\\newpage")  # Always start a new game on a new page
-    latex_lines.append(f"\\section{{{white_escaped} vs {black_escaped} ({result}) - {header_escaped}}}")
+    # Construct the title string that will be used for the TOC and header
+    title_string = f"{white_escaped} vs {black_escaped} ({result}) - {header_escaped}"
 
+    latex_lines.append("\\newpage")  # Always start a new game on a new page
+
+    # Instead of printing a visible \section, we add its data invisibly.
+
+    # 1. Add the title to the Table of Contents.
+    latex_lines.append(f"\\addcontentsline{{toc}}{{section}}{{{title_string}}}")
+
+    # 2. Set the page header mark for this section.
+    latex_lines.append(f"\\markright{{{title_string}}}")
+
+    # The game summary will now appear at the top of the page.
     latex_lines.extend(_generate_game_summary_latex(game, lang))
 
     return latex_lines
