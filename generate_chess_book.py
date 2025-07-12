@@ -144,6 +144,13 @@ MESSAGES = {
         'fn_board_diagram_all': 'Board diagrams are shown for every move pair. The board on the left shows the position after White\'s move, and the board on the right shows the position after Black\'s response. The start and end squares of each move are highlighted.',
         'fn_board_diagram_smart': 'Board diagrams are only shown for "smart" move pairs, where at least one move was interesting or inaccurate. The board on the left shows the position after White\'s move, and the board on the right is after Black\'s response. The start and end squares of each move are highlighted.',
         'how_to_read_title': 'How to Read This Book',
+        'table_metric': 'Metric',
+        'table_white': 'White',
+        'table_black': 'Black',
+        'table_avg_cpl': 'Average CPL',
+        'table_blunders': 'Blunders',
+        'table_mistakes': 'Mistakes',
+        'table_inaccuracies': 'Inaccuracies',
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -196,6 +203,13 @@ MESSAGES = {
         'fn_board_diagram_all': 'Les diagrammes d\'échiquier sont affichés pour chaque paire de coups. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
         'fn_board_diagram_smart': 'Les diagrammes d\'échiquier ne sont affichés que pour les paires de coups "intelligentes", où au moins un coup était intéressant ou imprécis. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite est après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
         'how_to_read_title': 'Comment Lire ce Livre',
+        'table_metric': 'Métrique',
+        'table_white': 'Blancs',
+        'table_black': 'Noirs',
+        'table_avg_cpl': 'CPL Moyen',
+        'table_blunders': 'Gaffes',
+        'table_mistakes': 'Erreurs',
+        'table_inaccuracies': 'Imprécisions',
     }
 }
 
@@ -413,25 +427,20 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
 
 def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     """
-    Generates the LaTeX for the analysis summary section (CPL, blunders, etc.).
+    Generates the LaTeX for the analysis summary section, formatted as a table.
     """
     fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
-    latex_lines = []
     if not analysis_data:
-        return latex_lines
+        return []
 
-    latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}{fn('fn_analysis_summary')}")
-
+    # --- Calculations (no changes here) ---
     total_moves_analyzed = len(analysis_data)
     white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
     black_moves_count = total_moves_analyzed - white_moves_count
-
     white_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if d['is_white_move'])
     black_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if not d['is_white_move'])
-
     white_avg_cpl = (white_total_cpl / white_moves_count) if white_moves_count > 0 else 0
     black_avg_cpl = (black_total_cpl / black_moves_count) if black_moves_count > 0 else 0
-
     white_blunders = sum(1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 200)
     black_blunders = sum(1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 200)
     white_mistakes = sum(1 for d in analysis_data if d['is_white_move'] and 100 <= d['cpl_for_move'] < 200)
@@ -439,21 +448,25 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     white_inaccuracies = sum(1 for d in analysis_data if d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
     black_inaccuracies = sum(1 for d in analysis_data if not d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
 
-    latex_lines.append(dedent(f"""
-        \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
-            \\item \\textbf{{{MESSAGES[lang]['overall_accuracy']}}}
-            \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
-                \\item {MESSAGES[lang]['white_avg_cpl']} {white_avg_cpl:.2f}
-                \\item {MESSAGES[lang]['black_avg_cpl']} {black_avg_cpl:.2f}
-            \\end{{itemize}}
-            \\item \\textbf{{{MESSAGES[lang]['mistakes_blunders']}}}
-            \\begin{{itemize}}\\setlength{{\\itemsep}}{{0pt}}\\setlength{{\\parskip}}{{0pt}}
-                \\item {MESSAGES[lang]['white_player_default']}: {white_blunders} {MESSAGES[lang]['blunders_text']}, {white_mistakes} {MESSAGES[lang]['mistakes_text']}, {white_inaccuracies} {MESSAGES[lang]['inaccuracies_text']}
-                \\item {MESSAGES[lang]['black_player_default']}: {black_blunders} {MESSAGES[lang]['blunders_text']}, {black_mistakes} {MESSAGES[lang]['mistakes_text']}, {black_inaccuracies} {MESSAGES[lang]['inaccuracies_text']}
-            \\end{{itemize}}
-        \\end{{itemize}}
-    """))
+    # --- New Table Generation Logic ---
+    latex_lines = []
+    latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}{fn('fn_analysis_summary')}")
+
+    header_metric = f"\\textbf{{{MESSAGES[lang]['table_metric']}}}"
+    header_white = f"\\textbf{{{MESSAGES[lang]['table_white']}}}"
+    header_black = f"\\textbf{{{MESSAGES[lang]['table_black']}}}"
+
+    # Use a tabularx environment for a table that spans the full text width.
+    # 'l' for left-aligned metric names, 'c' for centered data.
+    latex_lines.append(r"\begin{tabularx}{\linewidth}{l c c}")
+    latex_lines.append(f"{header_metric} & {header_white} & {header_black} \\\\ \\hline") # Headers with a line underneath
+    latex_lines.append(f"{MESSAGES[lang]['table_avg_cpl']} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
+    latex_lines.append(f"{MESSAGES[lang]['table_blunders']} & {white_blunders} & {black_blunders} \\\\")
+    latex_lines.append(f"{MESSAGES[lang]['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
+    latex_lines.append(f"{MESSAGES[lang]['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
+    latex_lines.append(r"\end{tabularx}")
     latex_lines.append(r"\vspace{\baselineskip}")
+
     return latex_lines
 
 
