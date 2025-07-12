@@ -448,13 +448,25 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     white_inaccuracies = sum(1 for d in analysis_data if d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
     black_inaccuracies = sum(1 for d in analysis_data if not d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
 
-    # --- New Table Generation Logic ---
+    # --- Table Generation Logic ---
     latex_lines = []
     latex_lines.append(f"\\subsection*{{{MESSAGES[lang]['analysis_summary_title']}}}{fn('fn_analysis_summary')}")
 
     header_metric = f"\\textbf{{{MESSAGES[lang]['table_metric']}}}"
     header_white = f"\\textbf{{{MESSAGES[lang]['table_white']}}}"
     header_black = f"\\textbf{{{MESSAGES[lang]['table_black']}}}"
+
+    latex_lines.append(r"\begin{tabularx}{\linewidth}{l c c}")
+    # Replace \hline with \cline for partial lines. Note the escaped braces for f-string.
+    latex_lines.append(f"{header_metric} & {header_white} & {header_black} \\\\ \\cline{{1-1}} \\cline{{2-3}}")
+    latex_lines.append(f"{MESSAGES[lang]['table_avg_cpl']} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
+    latex_lines.append(f"{MESSAGES[lang]['table_blunders']} & {white_blunders} & {black_blunders} \\\\")
+    latex_lines.append(f"{MESSAGES[lang]['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
+    latex_lines.append(f"{MESSAGES[lang]['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
+    latex_lines.append(r"\end{tabularx}")
+    latex_lines.append(r"\vspace{\baselineskip}")
+
+    return latex_lines
 
     # Use a tabularx environment for a table that spans the full text width.
     # 'l' for left-aligned metric names, 'c' for centered data.
