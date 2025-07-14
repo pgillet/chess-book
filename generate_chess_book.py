@@ -349,8 +349,8 @@ def format_pgn_date(pgn_date, lang='en'):
 
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
-    Generates the LaTeX for the game notation. For long games, it uses a two-column
-    tabbing environment for alignment. For shorter games, it uses a single-column table.
+    Generates the LaTeX for the game notation. For long games, it manually creates a
+    two-column layout with minipages to ensure perfect alignment and page breaks.
     """
     footnote = ""
     if annotated:
@@ -367,17 +367,14 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
     if use_two_columns:
-        # --- TWO-COLUMN LAYOUT FOR LONG GAMES using tabbing for alignment ---
-        latex_lines.append(r"\begin{multicols}{2}[\noindent]")
-        latex_lines.append(r"\begin{tabbing}")
-        # THIS IS THE CORRECTED LINE:
-        # It now properly defines three tab stops with generous spacing.
-        latex_lines.append(r"\hspace*{2.5em}\= \hspace*{6em}\= \hspace*{6em}\= \kill")
+        # --- MANUAL TWO-COLUMN LAYOUT FOR LONG GAMES ---
+        moves_per_page = 2 * TWO_COLUMN_THRESHOLD  # e.g., 50 full moves per page
+        num_pages = (num_full_moves + moves_per_page - 1) // moves_per_page
 
-        temp_board = game.board()  # Use a temporary board for SAN generation
+        all_move_data = []
+        temp_board = game.board()
         for i in range(0, len(moves), 2):
             move_number_str = f"{(i // 2) + 1}."
-
             white_move = moves[i]
             white_san = temp_board.san(white_move)
 
@@ -397,17 +394,40 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                         return figurine_cmd + " " + escape_latex_special_chars(san[1:])
                 return escape_latex_special_chars(san)
 
-            white_move_str_latex = get_formatted_san(white_san, white_move)
-            black_move_str_latex = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
-
-            latex_lines.append(f"\\> {move_number_str} \\> {white_move_str_latex} \\> {black_move_str_latex} \\\\")
+            white_str = get_formatted_san(white_san, white_move)
+            black_str = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
+            all_move_data.append((move_number_str, white_str, black_str))
 
             temp_board.push(white_move)
             if (i + 1) < len(moves):
                 temp_board.push(moves[i + 1])
 
-        latex_lines.append(r"\end{tabbing}")
-        latex_lines.append(r"\end{multicols}")
+        for page_num in range(num_pages):
+            start_move = page_num * moves_per_page
+            end_move = start_move + moves_per_page
+            page_moves = all_move_data[start_move:end_move]
+
+            col_1_rows = page_moves[:TWO_COLUMN_THRESHOLD]
+            col_2_rows = page_moves[TWO_COLUMN_THRESHOLD:]
+
+            # Use side-by-side minipages, each containing a tabular
+            latex_lines.append(r"\noindent\begin{minipage}[t]{0.48\linewidth}")
+            latex_lines.append(r"\begin{tabular}{l l l}")
+            for row in col_1_rows:
+                latex_lines.append(f"{row[0]} & {row[1]} & {row[2]} \\\\")
+            latex_lines.append(r"\end{tabular}")
+            latex_lines.append(r"\end{minipage}")
+            latex_lines.append(r"\hfill")  # Add flexible space between columns
+            latex_lines.append(r"\begin{minipage}[t]{0.48\linewidth}")
+            if col_2_rows:
+                latex_lines.append(r"\begin{tabular}{l l l}")
+                for row in col_2_rows:
+                    latex_lines.append(f"{row[0]} & {row[1]} & {row[2]} \\\\")
+                latex_lines.append(r"\end{tabular}")
+            latex_lines.append(r"\end{minipage}")
+
+            if page_num < num_pages - 1:
+                latex_lines.append(r"\newpage")
 
     else:
         # --- SINGLE-COLUMN LAYOUT FOR SHORTER GAMES (Unchanged) ---
