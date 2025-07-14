@@ -354,7 +354,7 @@ def format_pgn_date(pgn_date, lang='en'):
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
     Generates the LaTeX for the game notation. For long games, it uses a two-column
-    description list for perfect alignment and page breaking.
+    description list for alignment. For shorter games, it uses a single-column table.
     """
     footnote = ""
     if annotated:
@@ -372,16 +372,14 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     if use_two_columns:
         # --- NEWSPAPER-STYLE TWO-COLUMN LAYOUT FOR LONG GAMES ---
         latex_lines.append(r"\begin{multicols}{2}")
-        # Use a description list for perfect alignment and page breaking.
-        # \setlabelwidth sets the width of the move number column based on a wide example.
-        # [leftmargin=!, noitemsep] removes extra list indentation and vertical space.
-        latex_lines.append(r"\begin{description}[labelwidth=\widthof{\textbf{888.}}, leftmargin=!, noitemsep]")
+        # Use a description list. Set label width to fit a non-bold move number.
+        latex_lines.append(r"\begin{description}[labelwidth=\widthof{888.}, leftmargin=!, noitemsep]")
 
         temp_board = game.board()
         for i in range(0, len(moves), 2):
-            move_number_str = f"\\textbf{{{(i // 2) + 1}.}}"
+            # The \textbf{} wrapper is removed here.
+            move_number_str = f"{(i // 2) + 1}."
 
-            # --- Get SAN for White and Black moves ---
             white_move = moves[i]
             white_san = temp_board.san(white_move)
 
@@ -404,10 +402,10 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
             white_str = get_formatted_san(white_san, white_move)
             black_str = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
 
-            # Use \makebox to create a fixed-width column for the white move, ensuring the black move aligns.
             white_move_box = f"\\makebox[6em][l]{{{white_str}}}"
 
-            latex_lines.append(f"\\item[{move_number_str}] {white_move_box}{black_str}")
+            # Use \normalfont inside the item label to prevent default bolding.
+            latex_lines.append(f"\\item[\\normalfont {move_number_str}] {white_move_box}{black_str}")
 
             temp_board.push(white_move)
             if (i + 1) < len(moves):
