@@ -53,6 +53,8 @@ LATEX_HEADER_PART1 = dedent(r'''
     % Remove numbering from sections AND from TOC entries for sections
     \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
     \titlespacing{\section}{0pt}{0pt}{0pt}
+    \titlespacing*{\subsection}{0pt}{1.5ex}{1ex}
+    \titlespacing*{\subsubsection}{0pt}{1.5ex}{1ex}
     \setcounter{secnumdepth}{-1} % This hides section numbers in the TOC as well
     \setcounter{tocdepth}{1} % Ensure sections are included in TOC, but not lower levels by default
     \setlength{\parindent}{0pt}
