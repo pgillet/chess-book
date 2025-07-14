@@ -12,7 +12,9 @@ import chess.pgn
 LATEX_COMPILE_PASSES = 1
 
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
-MAX_BOARDS_PER_PAGE = 6  # This is a guideline for layout, not a strict page break trigger now
+
+MAX_BOARDS_PER_PAGE = 6
+TWO_COLUMN_THRESHOLD = 25  # Number of full moves to trigger two-column layout
 
 INLINE_CHESS_SYMBOL = {
     'P': r'\WhitePawnOnWhite', 'N': r'\WhiteKnightOnWhite', 'B': r'\WhiteBishopOnWhite',
@@ -38,6 +40,7 @@ LATEX_HEADER_PART1 = dedent(r'''
     \usepackage{titlesec}
     \usepackage{parskip}
     \usepackage{tabularx}
+    \usepackage{longtable}
     \usepackage{skak}
     \usepackage{scalerel}
     \usepackage{array} % Required for >{\centering\arraybackslash}
@@ -345,63 +348,111 @@ def format_pgn_date(pgn_date, lang='en'):
 
 
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
-    """Generates the LaTeX for the game notation."""
+    """
+    Generates the LaTeX for the game notation. For long games, it creates a two-column
+    layout with flowing text. For shorter games, it uses a single-column table.
+    """
     footnote = ""
     if annotated:
-        # Select the correct footnote key based on the notation type.
         key = 'fn_notation_figurine' if notation_type == 'figurine' else 'fn_notation_algebraic'
         footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
 
-    # Add an invisible subsection for spacing and to anchor the footnote.
     latex_lines = [f"\\subsection*{{{''}}}{footnote}"]
 
-    latex_lines.append("\\noindent")  # Keep table left-aligned
     board = game.board()
     moves = list(game.mainline_moves())
+    num_full_moves = (len(moves) + 1) // 2
 
-    if annotated and len(moves) > 16:
-        moves = moves[:16]
+    # The annotated example is always single-column.
+    use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
-    latex_lines.append("\\begin{tabularx}{\\linewidth}{l l l}")
-    for i in range(0, len(moves), 2):
-        move_number = (i // 2) + 1
-        white_move = moves[i]
-        white_san = board.san(white_move)
-        white_move_str_latex = ""
-        if notation_type == "figurine":
-            moving_piece = board.piece_at(white_move.from_square)
-            if moving_piece and moving_piece.piece_type != chess.PAWN:
-                piece_symbol = moving_piece.symbol()
-                figurine_cmd = _get_chess_figurine(piece_symbol)
-                if white_san and white_san[0].upper() in 'NBRQK':
+    if use_two_columns:
+        # --- TWO-COLUMN LAYOUT FOR LONG GAMES ---
+        # We generate each move as a separate paragraph. The 'multicols' environment
+        # will automatically arrange these paragraphs into balanced, page-breaking columns.
+        latex_lines.append(r"\begin{multicols}{2}[\noindent]")
+
+        move_lines = []
+        temp_board = game.board()  # Use a temporary board for SAN generation
+        for i in range(0, len(moves), 2):
+            move_number_str = f"\\textbf{{{(i // 2) + 1}.}}"
+
+            # --- Get SAN for White and Black moves ---
+            white_move = moves[i]
+            white_san = temp_board.san(white_move)
+
+            black_san = ""
+            if (i + 1) < len(moves):
+                temp_board.push(white_move)
+                black_move = moves[i + 1]
+                black_san = temp_board.san(black_move)
+                temp_board.pop()  # Backtrack
+
+            # --- Apply Figurine Notation if needed ---
+            def get_formatted_san(san, move):
+                if notation_type == "figurine":
+                    piece = temp_board.piece_at(move.from_square)
+                    if piece and piece.piece_type != chess.PAWN:
+                        figurine_cmd = _get_chess_figurine(piece.symbol())
+                        return figurine_cmd + " " + escape_latex_special_chars(san[1:])
+                return escape_latex_special_chars(san)
+
+            white_move_str_latex = get_formatted_san(white_san, white_move)
+            black_move_str_latex = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
+
+            # Create a single line for the move pair, using \hspace for spacing. End with \par.
+            move_lines.append(
+                f"{move_number_str}\\hspace{{1em}}{white_move_str_latex}\\hspace{{2em}}{black_move_str_latex}\\par")
+            temp_board.push(white_move)
+            if (i + 1) < len(moves):
+                temp_board.push(moves[i + 1])
+
+        latex_lines.extend(move_lines)
+        latex_lines.append(r"\end{multicols}")
+
+    else:
+        # --- SINGLE-COLUMN LAYOUT FOR SHORTER GAMES (Unchanged) ---
+        latex_lines.append("\\noindent")
+        latex_lines.append("\\begin{tabularx}{\\linewidth}{l l l}")
+
+        if annotated and len(moves) > 16:
+            moves = moves[:16]
+
+        for i in range(0, len(moves), 2):
+            move_number = (i // 2) + 1
+            white_move = moves[i]
+            white_san = board.san(white_move)
+            white_move_str_latex = ""
+            if notation_type == "figurine":
+                moving_piece = board.piece_at(white_move.from_square)
+                if moving_piece and moving_piece.piece_type != chess.PAWN:
+                    piece_symbol = moving_piece.symbol()
+                    figurine_cmd = _get_chess_figurine(piece_symbol)
                     white_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(white_san[1:])
                 else:
                     white_move_str_latex = escape_latex_special_chars(white_san)
             else:
                 white_move_str_latex = escape_latex_special_chars(white_san)
-        else:
-            white_move_str_latex = escape_latex_special_chars(white_san)
-        board.push(white_move)
-        black_move_str_latex = ""
-        if (i + 1) < len(moves):
-            black_move = moves[i + 1]
-            black_san = board.san(black_move)
-            if notation_type == "figurine":
-                moving_piece = board.piece_at(black_move.from_square)
-                if moving_piece and moving_piece.piece_type != chess.PAWN:
-                    piece_symbol = moving_piece.symbol()
-                    figurine_cmd = _get_chess_figurine(piece_symbol)
-                    if black_san and black_san[0].upper() in 'NBRQK':
+            board.push(white_move)
+
+            black_move_str_latex = ""
+            if (i + 1) < len(moves):
+                black_move = moves[i + 1]
+                black_san = board.san(black_move)
+                if notation_type == "figurine":
+                    moving_piece = board.piece_at(black_move.from_square)
+                    if moving_piece and moving_piece.piece_type != chess.PAWN:
+                        piece_symbol = moving_piece.symbol()
+                        figurine_cmd = _get_chess_figurine(piece_symbol)
                         black_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(black_san[1:])
                     else:
                         black_move_str_latex = escape_latex_special_chars(black_san)
                 else:
                     black_move_str_latex = escape_latex_special_chars(black_san)
-            else:
-                black_move_str_latex = escape_latex_special_chars(black_san)
-            board.push(black_move)
-        latex_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
-    latex_lines.append("\\end{tabularx}")
+                board.push(black_move)
+            latex_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
+        latex_lines.append("\\end{tabularx}")
+
     return latex_lines
 
 
@@ -637,8 +688,12 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     else:
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
-    # The minipage wrapper is removed to allow footnotes to appear at the page bottom.
+    # The minipage wrapper has been removed to allow the two-column layout to work.
     latex.extend(_generate_game_notation_latex(game, notation_type, lang, annotated=annotated))
+
+    # Add a command to discourage, but not forbid, a page break here.
+    latex.append(r"\nobreak")
+
     latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
 
     if display_boards:
