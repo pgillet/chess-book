@@ -591,7 +591,6 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
             footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
 
-        # Use \subsubsection* for a visible, unnumbered title for each board pair.
         latex_lines.append(f"\\subsubsection*{{{move_text}}}{footnote}")
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
@@ -603,21 +602,34 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         else:
             latex_lines.append("\\\\")
         latex_lines.append("\\end{tabularx}")
+
         if white_analysis or black_analysis:
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
             white_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(white_analysis['eval_after_played_move'], lang)}}}" if white_analysis else ""
             black_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(black_analysis['eval_after_played_move'], lang)}}}" if black_analysis else ""
             latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
-            white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-            if white_analysis and white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not \
-            white_analysis['engine_eval_before_played_move'].is_mate():
-                white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
-            black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-            if black_analysis and black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not \
-            black_analysis['engine_eval_before_played_move'].is_mate():
-                black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
+
+            white_details_line = ""
+            if white_analysis:
+                if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not white_analysis[
+                    'engine_eval_before_played_move'].is_mate():
+                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
+                else:
+                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
+
+            # Initialize black's details line as empty
+            black_details_line = ""
+            if black_analysis:
+                # Only populate the line if black_analysis exists
+                if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not black_analysis[
+                    'engine_eval_before_played_move'].is_mate():
+                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
+                else:
+                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
+
             latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
             latex_lines.append("\\end{tabularx}")
+
         latex_lines.append(r"\end{minipage}")
     return latex_lines
 
