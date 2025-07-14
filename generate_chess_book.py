@@ -45,6 +45,8 @@ LATEX_HEADER_PART1 = dedent(r'''
     \usepackage{scalerel}
     \usepackage{array} % Required for >{\centering\arraybackslash}
     \usepackage{amssymb} % For \Box, \blacksquare, and \star symbols
+    \usepackage{enumitem}
+    \usepackage{calc}
     %\usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
     % \usepackage{utfsym} % For \usym command to display Unicode symbols
     % Redefine tabularxcolumn for vertical and horizontal centering within X columns
@@ -351,8 +353,8 @@ def format_pgn_date(pgn_date, lang='en'):
 
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
-    Generates the LaTeX for the game notation. For long games, it manually creates a
-    two-column layout with minipages to ensure perfect alignment and page breaks.
+    Generates the LaTeX for the game notation. For long games, it uses a two-column
+    description list for perfect alignment and page breaking.
     """
     footnote = ""
     if annotated:
@@ -361,7 +363,6 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
 
     latex_lines = [f"\\subsection*{{{''}}}{footnote}"]
 
-    board = game.board()
     moves = list(game.mainline_moves())
     num_full_moves = (len(moves) + 1) // 2
 
@@ -369,14 +370,18 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
     if use_two_columns:
-        # --- MANUAL TWO-COLUMN LAYOUT FOR LONG GAMES ---
-        moves_per_page = 2 * TWO_COLUMN_THRESHOLD  # e.g., 50 full moves per page
-        num_pages = (num_full_moves + moves_per_page - 1) // moves_per_page
+        # --- NEWSPAPER-STYLE TWO-COLUMN LAYOUT FOR LONG GAMES ---
+        latex_lines.append(r"\begin{multicols}{2}")
+        # Use a description list for perfect alignment and page breaking.
+        # \setlabelwidth sets the width of the move number column based on a wide example.
+        # [leftmargin=!, noitemsep] removes extra list indentation and vertical space.
+        latex_lines.append(r"\begin{description}[labelwidth=\widthof{\textbf{888.}}, leftmargin=!, noitemsep]")
 
-        all_move_data = []
         temp_board = game.board()
         for i in range(0, len(moves), 2):
-            move_number_str = f"{(i // 2) + 1}."
+            move_number_str = f"\\textbf{{{(i // 2) + 1}.}}"
+
+            # --- Get SAN for White and Black moves ---
             white_move = moves[i]
             white_san = temp_board.san(white_move)
 
@@ -398,43 +403,24 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
 
             white_str = get_formatted_san(white_san, white_move)
             black_str = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
-            all_move_data.append((move_number_str, white_str, black_str))
+
+            # Use \makebox to create a fixed-width column for the white move, ensuring the black move aligns.
+            white_move_box = f"\\makebox[6em][l]{{{white_str}}}"
+
+            latex_lines.append(f"\\item[{move_number_str}] {white_move_box}{black_str}")
 
             temp_board.push(white_move)
             if (i + 1) < len(moves):
                 temp_board.push(moves[i + 1])
 
-        for page_num in range(num_pages):
-            start_move = page_num * moves_per_page
-            end_move = start_move + moves_per_page
-            page_moves = all_move_data[start_move:end_move]
-
-            col_1_rows = page_moves[:TWO_COLUMN_THRESHOLD]
-            col_2_rows = page_moves[TWO_COLUMN_THRESHOLD:]
-
-            # Use side-by-side minipages, each containing a tabular
-            latex_lines.append(r"\noindent\begin{minipage}[t]{0.48\linewidth}")
-            latex_lines.append(r"\begin{tabular}{l l l}")
-            for row in col_1_rows:
-                latex_lines.append(f"{row[0]} & {row[1]} & {row[2]} \\\\")
-            latex_lines.append(r"\end{tabular}")
-            latex_lines.append(r"\end{minipage}")
-            latex_lines.append(r"\hfill")  # Add flexible space between columns
-            latex_lines.append(r"\begin{minipage}[t]{0.48\linewidth}")
-            if col_2_rows:
-                latex_lines.append(r"\begin{tabular}{l l l}")
-                for row in col_2_rows:
-                    latex_lines.append(f"{row[0]} & {row[1]} & {row[2]} \\\\")
-                latex_lines.append(r"\end{tabular}")
-            latex_lines.append(r"\end{minipage}")
-
-            if page_num < num_pages - 1:
-                latex_lines.append(r"\newpage")
+        latex_lines.append(r"\end{description}")
+        latex_lines.append(r"\end{multicols}")
 
     else:
         # --- SINGLE-COLUMN LAYOUT FOR SHORTER GAMES (Unchanged) ---
         latex_lines.append("\\noindent")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{l l l}")
+        board = game.board()
 
         if annotated and len(moves) > 16:
             moves = moves[:16]
