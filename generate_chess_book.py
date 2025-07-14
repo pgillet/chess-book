@@ -656,6 +656,9 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
     print("Generating 'How to Read This Book' section...")
     title = MESSAGES[lang]['how_to_read_title']
 
+    # Ensure this new section starts on a right-hand (recto) page.
+    tex_master.append(r"\cleardoublepage")
+
     # Create an invisible chapter entry in the TOC and page headers
     tex_master.append(f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}")
     tex_master.append(f"\\markboth{{{title}}}{{{title}}}")
