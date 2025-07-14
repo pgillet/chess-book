@@ -349,8 +349,8 @@ def format_pgn_date(pgn_date, lang='en'):
 
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
-    Generates the LaTeX for the game notation. For long games, it creates a two-column
-    layout with flowing text. For shorter games, it uses a single-column table.
+    Generates the LaTeX for the game notation. For long games, it uses a two-column
+    tabbing environment for alignment. For shorter games, it uses a single-column table.
     """
     footnote = ""
     if annotated:
@@ -367,17 +367,17 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
     if use_two_columns:
-        # --- TWO-COLUMN LAYOUT FOR LONG GAMES ---
-        # We generate each move as a separate paragraph. The 'multicols' environment
-        # will automatically arrange these paragraphs into balanced, page-breaking columns.
+        # --- TWO-COLUMN LAYOUT FOR LONG GAMES using tabbing for alignment ---
         latex_lines.append(r"\begin{multicols}{2}[\noindent]")
+        latex_lines.append(r"\begin{tabbing}")
+        # THIS IS THE CORRECTED LINE:
+        # It now properly defines three tab stops with generous spacing.
+        latex_lines.append(r"\hspace*{2.5em}\= \hspace*{6em}\= \hspace*{6em}\= \kill")
 
-        move_lines = []
         temp_board = game.board()  # Use a temporary board for SAN generation
         for i in range(0, len(moves), 2):
-            move_number_str = f"\\textbf{{{(i // 2) + 1}.}}"
+            move_number_str = f"{(i // 2) + 1}."
 
-            # --- Get SAN for White and Black moves ---
             white_move = moves[i]
             white_san = temp_board.san(white_move)
 
@@ -386,10 +386,10 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                 temp_board.push(white_move)
                 black_move = moves[i + 1]
                 black_san = temp_board.san(black_move)
-                temp_board.pop()  # Backtrack
+                temp_board.pop()
 
-            # --- Apply Figurine Notation if needed ---
             def get_formatted_san(san, move):
+                if not san: return ""
                 if notation_type == "figurine":
                     piece = temp_board.piece_at(move.from_square)
                     if piece and piece.piece_type != chess.PAWN:
@@ -400,14 +400,13 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
             white_move_str_latex = get_formatted_san(white_san, white_move)
             black_move_str_latex = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
 
-            # Create a single line for the move pair, using \hspace for spacing. End with \par.
-            move_lines.append(
-                f"{move_number_str}\\hspace{{1em}}{white_move_str_latex}\\hspace{{2em}}{black_move_str_latex}\\par")
+            latex_lines.append(f"\\> {move_number_str} \\> {white_move_str_latex} \\> {black_move_str_latex} \\\\")
+
             temp_board.push(white_move)
             if (i + 1) < len(moves):
                 temp_board.push(moves[i + 1])
 
-        latex_lines.extend(move_lines)
+        latex_lines.append(r"\end{tabbing}")
         latex_lines.append(r"\end{multicols}")
 
     else:
