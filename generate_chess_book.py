@@ -12,9 +12,18 @@ import chess.pgn
 LATEX_COMPILE_PASSES = 1
 
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
-
 MAX_BOARDS_PER_PAGE = 6
 TWO_COLUMN_THRESHOLD = 25  # Number of full moves to trigger two-column layout
+
+# New settings dictionary for paper sizes
+PAPER_SIZE_SETTINGS = {
+    # Bigger paper, smaller font/board
+    'a3': {'options': 'a3paper,9pt', 'board_size': '16pt'},
+    # Default
+    'a4': {'options': 'a4paper,10pt', 'board_size': '20pt'},
+    # Smaller paper, bigger font/board
+    'a5': {'options': 'a5paper,9pt', 'board_size': '16pt'},
+}
 
 INLINE_CHESS_SYMBOL = {
     'P': r'\WhitePawnOnWhite', 'N': r'\WhiteKnightOnWhite', 'B': r'\WhiteBishopOnWhite',
@@ -30,73 +39,66 @@ UNICODE_CHESS_SYMBOL = {
     'r': r'\usym{265C}', 'q': r'\usym{265B}', 'k': r'\usym{265A}',
 }
 
-# Split LATEX_HEADER into two parts to allow insertion of epigraph in between
-LATEX_HEADER_PART1 = dedent(r'''
-    \documentclass[10pt]{book}
-    \usepackage[margin=0.7in]{geometry}
-    \usepackage{chessboard}
-    \usepackage{multicol}
-    \usepackage{fancyhdr}
-    \usepackage{titlesec}
-    \usepackage{parskip}
-    \usepackage{tabularx}
-    \usepackage{longtable}
-    \usepackage{skak}
-    \usepackage{scalerel}
-    \usepackage{array} % Required for >{\centering\arraybackslash}
-    \usepackage{amssymb} % For \Box, \blacksquare, and \star symbols
-    \usepackage{enumitem}
-    \usepackage{calc}
-    %\usepackage{fontspec} % Required for Unicode fonts like those used by utfsym
-    % \usepackage{utfsym} % For \usym command to display Unicode symbols
-    % Redefine tabularxcolumn for vertical and horizontal centering within X columns
-    \renewcommand{\tabularxcolumn}[1]{>{\centering\arraybackslash}m{#1}}
 
-    % Remove numbering from sections AND from TOC entries for sections
-    \titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
-    \titlespacing{\section}{0pt}{0pt}{0pt}
-    \titlespacing*{\subsection}{0pt}{1.5ex}{1ex}
-    \titlespacing*{\subsubsection}{0pt}{1.5ex}{1ex}
-    \setcounter{secnumdepth}{-1} % This hides section numbers in the TOC as well
-    \setcounter{tocdepth}{1} % Ensure sections are included in TOC, but not lower levels by default
-    \setlength{\parindent}{0pt}
+def get_latex_header_part1(documentclass_options):
+    # The f-string formatting has been corrected to prevent the NameError.
+    return dedent(fr'''
+        \documentclass[{documentclass_options}]{{book}}
+        \usepackage[margin=0.7in]{{geometry}}
+        \usepackage{{chessboard}}
+        \usepackage{{multicol}}
+        \usepackage{{fancyhdr}}
+        \usepackage{{titlesec}}
+        \usepackage{{parskip}}
+        \usepackage{{tabularx}}
+        \usepackage{{longtable}}
+        \usepackage{{skak}}
+        \usepackage{{scalerel}}
+        \usepackage{{array}} % Required for >{{\centering\arraybackslash}}
+        \usepackage{{amssymb}} % For \Box, \blacksquare, and \star symbols
+        \usepackage{{enumitem}}
+        \usepackage{{calc}}
+        %\usepackage{{fontspec}} % Required for Unicode fonts like those used by utfsym
+        % \usepackage{{utfsym}} % For \usym command to display Unicode symbols
+        % Redefine tabularxcolumn for vertical and horizontal centering within X columns
+        \renewcommand{{\tabularxcolumn}}[1]{{>{{\centering\arraybackslash}}m{{#1}}}}
 
-    % Redefine \sectionmark to show only the section title without numbering
-    \renewcommand{\sectionmark}[1]{\markright{#1}}
+        % Remove numbering from sections AND from TOC entries for sections
+        \titleformat{{\section}}{{\normalfont\Large\bfseries}}{{}}{{0pt}}{{}}
+        \titlespacing*{{\section}}{{0pt}}{{1.5ex}}{{1ex}}
+        \titlespacing*{{\subsection}}{{0pt}}{{1.5ex}}{{1ex}}
+        \titlespacing*{{\subsubsection}}{{0pt}}{{1.5ex}}{{1ex}}
+        \setcounter{{secnumdepth}}{{-1}} % This hides section numbers in the TOC as well
+        \setcounter{{tocdepth}}{{1}} % Ensure sections are included in TOC, but not lower levels by default
+        \setlength{{\parindent}}{{0pt}}
 
-    \pagestyle{fancy}
-    \fancyhf{} % Clear all headers and footers first
-    \renewcommand{\headrulewidth}{0pt} % Remove the horizontal header line
+        % Redefine \sectionmark to show only the section title without numbering
+        \renewcommand{{\sectionmark}}[1]{{\markright{{#1}}}}
 
-    % Define the header for odd pages (right-hand pages)
-    \fancyhead[RO]{\nouppercase{\rightmark}} % Right Odd: Show the current section title
+        \pagestyle{{fancy}}
+        \fancyhf{{}} % Clear all headers and footers first
+        \renewcommand{{\headrulewidth}}{{0pt}} % Remove the horizontal header line
 
-    % Define the footer for even pages (left-hand pages)
-    \fancyfoot[LE,RO]{\thepage} % Left Even, Right Odd
-    % Define the footer for odd pages (right-hand pages)
-    \fancyfoot[LO,CE]{} % Left Odd, Center Even
+        % Define the header for odd pages (right-hand pages)
+        \fancyhead[RO]{{\nouppercase{{\rightmark}}}} % Right Odd: Show the current section title
 
-    % Redefine the plain page style (used for chapter pages)
-    \fancypagestyle{plain}{
-        \fancyhf{} % Clear all header and footer fields
-        \fancyfoot[LE,RO]{\thepage} % Page numbers on the bottom left for even pages and bottom right for odd pages
-        \renewcommand{\headrulerulewidth}{0pt} % Ensure the horizontal line is removed on plain pages as well
-    }
+        % Define the footer for even pages (left-hand pages)
+        \fancyfoot[LE,RO]{{\thepage}} % Left Even, Right Odd
+        % Define the footer for odd pages (right-hand pages)
+        \fancyfoot[LO,CE]{{}} % Left Odd, Center Even
 
-    % IMPORTANT: You might need to install the 'utfsym' package if you don't have it.
-    % Also, ensure you have a font installed on your system that contains Unicode chess symbols.
-    % Common examples for a font that works well with utfsym:
-    % 'Noto Serif Chess', 'Segoe UI Symbol' (on Windows), 'Symbola', 'Chess Alpha'.
-    % If your font needs to be explicitly set for utfsym, uncomment and modify
-    % the line below, replacing 'Your Chess Unicode Font Name' with the exact name
-    % of the font installed on your system:
-    % \setmainfont{Your Chess Unicode Font Name}
-    \begin{document}
-''')
+        % Redefine the plain page style (used for chapter pages)
+        \fancypagestyle{{plain}}{{
+            \fancyhf{{}} % Clear all header and footer fields
+            \fancyfoot[LE,RO]{{\thepage}} % Page numbers on the bottom left for even pages and bottom right for odd pages
+            \renewcommand{{\headrulewidth}}{{0pt}}
+        }}
+        \begin{{document}}
+    ''')
+
 
 LATEX_HEADER_PART2_TOC = dedent(r'''
     \tableofcontents % Generates the Table of Contents
-    \newpage % Starts the main content on a new page after the TOC
 ''')
 
 LATEX_FOOTER = "\\end{document}"
@@ -112,11 +114,11 @@ MESSAGES = {
         'black_avg_cpl': 'Black Average CPL:',
         'mistakes_blunders': 'Mistakes & Blunders:',
         'blunders_text': 'Blunders',
-        'blunder_text_singular': 'Blunder',  # Added singular form
+        'blunder_text_singular': 'Blunder',
         'mistakes_text': 'Mistakes',
-        'mistake_text_singular': 'Mistake',  # Added singular form
+        'mistake_text_singular': 'Mistake',
         'inaccuracies_text': 'Inaccuracies',
-        'inaccuracy_text_singular': 'Inaccuracy',  # Added singular form
+        'inaccuracy_text_singular': 'Inaccuracy',
         'good_move_text': 'Good Move',
         'eval_text': 'Eval:',
         'best_move_text': 'Best:',
@@ -139,6 +141,8 @@ MESSAGES = {
         'front_matter_page_file_not_found': "Warning: file not found at {path}",
         'error_reading_front_matter_page': "Warning: Could not read file {path}: {e}",
         'date_format': "%B %d, %Y",
+        'months': ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+                   'November', 'December'],
         'fn_white_player': 'The white square denotes the player with the White pieces.',
         'fn_black_player': 'The black square denotes the player with the Black pieces.',
         'fn_winner': 'A star symbol appears next to the winner of the game.',
@@ -169,11 +173,11 @@ MESSAGES = {
         'black_avg_cpl': 'CPL Moyen des Noirs :',
         'mistakes_blunders': 'Erreurs et Gaffes :',
         'blunders_text': 'Gaffes',
-        'blunder_text_singular': 'Gaffe',  # Added singular form
+        'blunder_text_singular': 'Gaffe',
         'mistakes_text': 'Erreurs',
-        'mistake_text_singular': 'Erreur',  # Added singular form
+        'mistake_text_singular': 'Erreur',
         'inaccuracies_text': 'Imprécisions',
-        'inaccuracy_text_singular': 'Imprécision',  # Added singular form
+        'inaccuracy_text_singular': 'Imprécision',
         'good_move_text': 'Bon Coup',
         'eval_text': 'Éval. :',
         'best_move_text': 'Meilleur :',
@@ -261,24 +265,21 @@ def get_eval_string(score, lang='en'):
     """Formats a Stockfish score object into a human-readable string."""
     if score is None:
         return "N/A"
-
     white_pov_score = score.white()
-
     if white_pov_score.is_mate():
         mate_value = white_pov_score.mate()
         return f"M{abs(mate_value)}" if mate_value != 0 else "0"
-
     return f"{white_pov_score.cp / 100.0:+.2f}{MESSAGES[lang]['cp_text']}"
 
 
 def classify_move_loss(cpl, lang='en'):
     """Classifies a move based on Centipawn Loss (CPL)."""
     if cpl >= 200:
-        return f"\\textbf{{{MESSAGES[lang]['blunder_text_singular']}}}"  # Use singular
+        return f"\\textbf{{{MESSAGES[lang]['blunder_text_singular']}}}"
     elif cpl >= 100:
-        return f"\\textbf{{{MESSAGES[lang]['mistake_text_singular']}}}"  # Use singular
+        return f"\\textbf{{{MESSAGES[lang]['mistake_text_singular']}}}"
     elif cpl >= 50:
-        return MESSAGES[lang]['inaccuracy_text_singular']  # Use singular
+        return MESSAGES[lang]['inaccuracy_text_singular']
     return MESSAGES[lang]['good_move_text']
 
 
@@ -290,18 +291,14 @@ def analyze_game_with_stockfish(game, engine):
     analysis_results = []  # Stores data for each half-move
     board = game.board()
     moves = list(game.mainline_moves())
-
     for i, move in enumerate(moves):
         analysis_before_move = engine.analyse(board, chess.engine.Limit(depth=15))
-
         best_move_from_pos = analysis_before_move["pv"][0] if analysis_before_move["pv"] else None
         ideal_eval_before_move = analysis_before_move["score"]
-
         temp_board_after_played_move = board.copy()
         temp_board_after_played_move.push(move)
         analysis_after_played_move = engine.analyse(temp_board_after_played_move, chess.engine.Limit(depth=15))
         eval_after_played_move = analysis_after_played_move["score"]
-
         cpl = 0
         if not ideal_eval_before_move.is_mate() and not eval_after_played_move.is_mate():
             ideal_cp_white_pov = ideal_eval_before_move.white().cp
@@ -310,7 +307,6 @@ def analyze_game_with_stockfish(game, engine):
                 cpl = max(0, ideal_cp_white_pov - played_cp_white_pov)
             else:
                 cpl = max(0, played_cp_white_pov - ideal_cp_white_pov)
-
         analysis_results.append({
             'move_index': i,
             'played_move': move,
@@ -321,7 +317,6 @@ def analyze_game_with_stockfish(game, engine):
             'cpl_for_move': cpl,
         })
         board.push(move)
-
     return analysis_results
 
 
@@ -331,7 +326,6 @@ def _get_chess_figurine(piece_symbol, default_value="", inline=True):
         figurine_cmd = "\\scalerel*{" + figurine_cmd + "}{Xg}"
     else:
         figurine_cmd = UNICODE_CHESS_SYMBOL.get(piece_symbol, default_value)
-
     return figurine_cmd
 
 
@@ -343,9 +337,9 @@ def format_pgn_date(pgn_date, lang='en'):
             month_name = MESSAGES[lang]['months'][date_obj.month - 1]
             if lang == 'fr':
                 return f"{date_obj.day} {month_name} {date_obj.year}"
-            else:  # Default to English format
+            else:
                 return f"{month_name} {date_obj.day}, {date_obj.year}"
-        else:  # Fallback to specified format string
+        else:
             return date_obj.strftime(MESSAGES[lang]["date_format"])
     except (ValueError, KeyError):
         return pgn_date
@@ -354,7 +348,7 @@ def format_pgn_date(pgn_date, lang='en'):
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
     Generates the LaTeX for the game notation. For long games, it uses a two-column
-    description list for alignment. For shorter games, it uses a single-column table.
+    tabbing environment with tight spacing. For shorter games, it uses a single-column table.
     """
     footnote = ""
     if annotated:
@@ -370,14 +364,14 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
     if use_two_columns:
-        # --- NEWSPAPER-STYLE TWO-COLUMN LAYOUT FOR LONG GAMES ---
-        latex_lines.append(r"\begin{multicols}{2}")
-        # Use a description list. Set label width to fit a non-bold move number.
-        latex_lines.append(r"\begin{description}[labelwidth=\widthof{888.}, leftmargin=!, noitemsep]")
+        # --- TWO-COLUMN LAYOUT FOR LONG GAMES using tabbing for minimal space ---
+        latex_lines.append(r"\begin{multicols}{2}[\noindent]")
+        latex_lines.append(r"\begin{tabbing}")
+        # Set tab stops based on wide placeholder text to ensure minimal width.
+        latex_lines.append(r"888.\ \= WWWWWW\ \= WWWWWW \= \kill")
 
         temp_board = game.board()
         for i in range(0, len(moves), 2):
-            # The \textbf{} wrapper is removed here.
             move_number_str = f"{(i // 2) + 1}."
 
             white_move = moves[i]
@@ -402,16 +396,14 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
             white_str = get_formatted_san(white_san, white_move)
             black_str = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
 
-            white_move_box = f"\\makebox[6em][l]{{{white_str}}}"
-
-            # Use \normalfont inside the item label to prevent default bolding.
-            latex_lines.append(f"\\item[\\normalfont {move_number_str}] {white_move_box}{black_str}")
+            # Use tabs (\>) to align each part of the move notation.
+            latex_lines.append(f"{move_number_str} \\> {white_str} \\> {black_str} \\\\")
 
             temp_board.push(white_move)
             if (i + 1) < len(moves):
                 temp_board.push(moves[i + 1])
 
-        latex_lines.append(r"\end{description}")
+        latex_lines.append(r"\end{tabbing}")
         latex_lines.append(r"\end{multicols}")
 
     else:
@@ -471,13 +463,10 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
     white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
     black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
     result = game.headers.get("Result", "*")
-
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
     header_escaped = escape_latex_special_chars(header)
-
     title_string = f"{white_escaped} vs {black_escaped} ({result}) - {header_escaped}"
-
     latex_lines.append("\\newpage")
     latex_lines.append(f"\\addcontentsline{{toc}}{{section}}{{{title_string}}}")
     latex_lines.append(f"\\markright{{{title_string}}}")
@@ -492,8 +481,6 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     if not analysis_data:
         return []
-
-    # --- Calculations (no changes here) ---
     total_moves_analyzed = len(analysis_data)
     white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
     black_moves_count = total_moves_analyzed - white_moves_count
@@ -507,17 +494,11 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     black_mistakes = sum(1 for d in analysis_data if not d['is_white_move'] and 100 <= d['cpl_for_move'] < 200)
     white_inaccuracies = sum(1 for d in analysis_data if d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
     black_inaccuracies = sum(1 for d in analysis_data if not d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
-
-    # --- Table Generation Logic ---
-    # Add an invisible subsection for standardized spacing and to anchor the footnote.
     latex_lines = [f"\\subsection*{{{''}}}{fn('fn_analysis_summary')}"]
-
     header_metric = ""
     header_white = f"\\textbf{{{MESSAGES[lang]['table_white']}}}"
     header_black = f"\\textbf{{{MESSAGES[lang]['table_black']}}}"
-
     avg_cpl_label = MESSAGES[lang]['table_avg_cpl']
-
     latex_lines.append(r"\begin{tabularx}{\linewidth}{l c c}")
     latex_lines.append(f"{header_metric} & {header_white} & {header_black} \\\\ \\cline{{1-1}} \\cline{{2-3}}")
     latex_lines.append(f"{avg_cpl_label} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
@@ -525,8 +506,6 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     latex_lines.append(f"{MESSAGES[lang]['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
     latex_lines.append(f"{MESSAGES[lang]['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
     latex_lines.append(r"\end{tabularx}")
-    #latex_lines.append(r"\vspace{\baselineskip}")
-
     return latex_lines
 
 
@@ -538,7 +517,6 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     latex_lines = []
     if not analysis_data:
         return latex_lines
-
     board_for_display = game.board()
     moves_list = list(game.mainline_moves())
     all_calculated_move_pairs = []
@@ -575,38 +553,34 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             fen2, marked_sq2 = fen1, ""
         all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2,
                                           marked_sq2, black_analysis_data, has_cpl_in_pair))
-
     move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
                                                                                     all_calculated_move_pairs if
                                                                                     pair[7]]
     if annotated:
         move_pairs_to_display = all_calculated_move_pairs[5:6]
-
+    board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
     for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
             move_pairs_to_display):
         footnote = ""
         if i == 0 and annotated:
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
             footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
-
         latex_lines.append(f"\\subsubsection*{{{move_text}}}{footnote}")
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
         latex_lines.append(
-            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize=20pt, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
+            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize={board_size}, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
         if marked_sq2:
             latex_lines.append(
-                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize=20pt, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
+                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize={board_size}, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
         else:
             latex_lines.append("\\\\")
         latex_lines.append("\\end{tabularx}")
-
         if white_analysis or black_analysis:
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
             white_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(white_analysis['eval_after_played_move'], lang)}}}" if white_analysis else ""
             black_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(black_analysis['eval_after_played_move'], lang)}}}" if black_analysis else ""
             latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
-
             white_details_line = ""
             if white_analysis:
                 if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not white_analysis[
@@ -614,22 +588,18 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                     white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
                 else:
                     white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-
-            # Initialize black's details line as empty
             black_details_line = ""
             if black_analysis:
-                # Only populate the line if black_analysis exists
                 if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not black_analysis[
                     'engine_eval_before_played_move'].is_mate():
                     black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
                 else:
                     black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-
             latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
             latex_lines.append("\\end{tabularx}")
-
         latex_lines.append(r"\end{minipage}")
     return latex_lines
+
 
 def _generate_game_summary_latex(game, lang='en', annotated=False):
     """
@@ -700,19 +670,12 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     """
     latex = []
     if annotated:
-        # For the annotated example, we don't need the standard metadata header
         latex.extend(_generate_game_summary_latex(game, lang, annotated=True))
     else:
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
-
-    # The minipage wrapper has been removed to allow the two-column layout to work.
-    latex.extend(_generate_game_notation_latex(game, notation_type, lang, annotated=annotated))
-
-    # Add a command to discourage, but not forbid, a page break here.
+    latex.extend(_generate_game_notation_latex(game, args.notation_type, lang, annotated=annotated))
     latex.append(r"\nobreak")
-
     latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
-
     if display_boards:
         latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
 
@@ -727,32 +690,20 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
     lang = args.language
     print("Generating 'How to Read This Book' section...")
     title = MESSAGES[lang]['how_to_read_title']
-
-    # Ensure this new section starts on a right-hand (recto) page.
     tex_master.append(r"\cleardoublepage")
-
-    # Create an invisible chapter entry in the TOC and page headers
     tex_master.append(f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}")
     tex_master.append(f"\\markboth{{{title}}}{{{title}}}")
-
-    # Parse the example game
     pgn_io = io.StringIO(OPERA_GAME_PGN)
     game = chess.pgn.read_game(pgn_io)
     analysis_data = []
     if engine:
         analysis_data = analyze_game_with_stockfish(game, engine)
-
-    # Export the game with footnotes enabled
     export_game_to_latex(
         game, 0, output_dir, analysis_data, args.notation_type,
         display_boards=args.display_boards, board_scope=args.board_scope,
         lang=lang, annotated=True
     )
-
-    # Input the generated file into the master document
     tex_master.append(r"\input{how_to_read_example.tex}")
-
-    # Force a blank page with no headers or footers, then ensure proper book layout
     tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
     tex_master.append(r"\cleardoublepage")
 
@@ -773,11 +724,9 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
     """Compiles the LaTeX files to PDF and cleans up auxiliary files."""
     output_dir = Path(output_dir_path)
     main_tex_path = output_dir / main_tex_file
-
     if not main_tex_path.exists():
         print(MESSAGES[lang]['main_latex_not_found'].format(main_tex_file=main_tex_path), file=sys.stderr)
         return
-
     print(MESSAGES[lang]['compiling_latex'].format(output_dir=output_dir))
     for i in range(LATEX_COMPILE_PASSES):
         try:
@@ -798,7 +747,6 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
         except Exception as e:
             print(MESSAGES[lang]['unexpected_latex_error'].format(error_msg=e), file=sys.stderr)
             sys.exit(1)
-
     print(MESSAGES[lang]['latex_compile_complete'])
     aux_extensions = ['.aux', '.log', '.lof', '.toc', '.out', '.fls', '.fdb_latexmk', '.synctex.gz']
     for f in output_dir.iterdir():
@@ -820,13 +768,11 @@ def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
             try:
                 with open(content_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-
                 content_processed = escape_latex_special_chars(content)
                 while '\n\n\n' in content_processed:
                     content_processed = content_processed.replace('\n\n\n', '\n\n')
                 content_processed = content_processed.replace('\n\n', r"\par\vspace{\baselineskip}\noindent ")
                 content_processed = content_processed.replace('\n', r"\\* ")
-
                 formatted_content = (
                         r"\newpage" + "\n" +
                         r"\thispagestyle{empty}" + "\n" +
@@ -850,15 +796,15 @@ def generate_chess_book(args):
     """
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-
     with open(args.pgn_file) as f:
         games = [game for game in iter(lambda: chess.pgn.read_game(f), None)]
 
-    tex_master = [LATEX_HEADER_PART1]
+    settings = PAPER_SIZE_SETTINGS[args.paper_size]
+    tex_master = [get_latex_header_part1(settings['options'])]
+
     _add_front_matter_page_to_latex(tex_master, args.dedication_file, args.language)
     _add_front_matter_page_to_latex(tex_master, args.epigraph_file, args.language)
     tex_master.append(LATEX_HEADER_PART2_TOC)
-
     engine = None
     try:
         engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
@@ -866,10 +812,8 @@ def generate_chess_book(args):
     except Exception as e:
         print(MESSAGES[args.language]['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
         print(MESSAGES[args.language]['analysis_disabled_warning'])
-
     if args.how_to_read:
         generate_how_to_read_section(tex_master, args, output_dir, engine)
-
     for idx, game in enumerate(games):
         try:
             print(MESSAGES[args.language]['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
@@ -878,7 +822,6 @@ def generate_chess_book(args):
                 analysis_data = analyze_game_with_stockfish(game, engine)
             else:
                 print(MESSAGES[args.language]['skipping_stockfish_analysis'].format(game_num=idx + 1))
-
             export_game_to_latex(
                 game, idx + 1, output_dir, analysis_data, args.notation_type,
                 display_boards=args.display_boards,
@@ -887,73 +830,34 @@ def generate_chess_book(args):
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
             print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
-
     tex_master.append(LATEX_FOOTER)
     with open(output_dir / "chess_book.tex", "w", encoding='utf-8') as f:
         f.write("\n".join(tex_master))
-
     if engine:
         engine.quit()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate a chess book from PGN files."
-    )
-    parser.add_argument(
-        "pgn_file",
-        type=str,
-        help="Path to the PGN file containing chess games."
-    )
-    parser.add_argument(
-        "output_dir",
-        type=str,
-        help="Directory where the LaTeX files and the final PDF will be generated."
-    )
-    parser.add_argument(
-        "--notation_type",
-        type=str,
-        choices=["algebraic", "figurine"],
-        default="figurine",
-        help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine')."
-    )
-    parser.add_argument(
-        "--display_boards",
-        action="store_true",
-        help="Enable display of chessboards. If off (default), only notation is displayed."
-    )
-    parser.add_argument(
-        "--board_scope",
-        type=str,
-        choices=["all", "smart"],
-        default="smart",
-        help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart')."
-    )
-    parser.add_argument(
-        "--language",
-        type=str,
-        choices=["en", "fr"],
-        default="en",
-        help="Language for the generated text (default: 'en')."
-    )
-    parser.add_argument(
-        "--epigraph_file",
-        type=str,
-        help="Path to a raw text file for the epigraph page (optional)."
-    )
-    parser.add_argument(
-        "--dedication_file",
-        type=str,
-        help="Path to a raw text file for the dedication page (optional)."
-    )
-    parser.add_argument(
-        "--how_to_read",
-        action="store_true",
-        help="Adds a 'How to Read This Book' section using footnotes."
-    )
-
+    parser = argparse.ArgumentParser(description="Generate a chess book from PGN files.")
+    parser.add_argument("pgn_file", type=str, help="Path to the PGN file containing chess games.")
+    parser.add_argument("output_dir", type=str,
+                        help="Directory where the LaTeX files and the final PDF will be generated.")
+    parser.add_argument("--notation_type", type=str, choices=["algebraic", "figurine"], default="figurine",
+                        help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine').")
+    parser.add_argument("--display_boards", action="store_true",
+                        help="Enable display of chessboards. If off (default), only notation is displayed.")
+    parser.add_argument("--board_scope", type=str, choices=["all", "smart"], default="smart",
+                        help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart').")
+    parser.add_argument("--language", type=str, choices=["en", "fr"], default="en",
+                        help="Language for the generated text (default: 'en').")
+    parser.add_argument("--paper_size", type=str, choices=['a3', 'a4', 'a5'], default='a4',
+                        help="Paper size for the output PDF (default: 'a4').")
+    parser.add_argument("--epigraph_file", type=str, help="Path to a raw text file for the epigraph page (optional).")
+    parser.add_argument("--dedication_file", type=str,
+                        help="Path to a raw text file for the dedication page (optional).")
+    parser.add_argument("--how_to_read", action="store_true",
+                        help="Adds a 'How to Read This Book' section using footnotes.")
     args = parser.parse_args()
-
     delete_output_directory(args.output_dir, args.language)
     generate_chess_book(args)
     compile_latex_to_pdf(args.output_dir, lang=args.language)
