@@ -60,6 +60,7 @@ def get_latex_header_part1(settings):
         \usepackage{{skak}}
         \usepackage{{scalerel}}
         \usepackage{{array}} % Required for >{{\centering\arraybackslash}}
+        \usepackage{{amsmath}}
         \usepackage{{amssymb}} % For \Box, \blacksquare, and \star symbols
         \usepackage{{enumitem}}
         \usepackage{{calc}}
@@ -542,14 +543,15 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     return latex_lines
 
 
-def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False):
+def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays and their analysis.
+    Generates the LaTeX for move-by-move board displays and their analysis using the new balanced format.
     """
     fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
         return latex_lines
+
     board_for_display = game.board()
     moves_list = list(game.mainline_moves())
     all_calculated_move_pairs = []
@@ -586,11 +588,13 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             fen2, marked_sq2 = fen1, ""
         all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2,
                                           marked_sq2, black_analysis_data, has_cpl_in_pair))
+
     move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
                                                                                     all_calculated_move_pairs if
                                                                                     pair[7]]
     if annotated:
         move_pairs_to_display = all_calculated_move_pairs[5:6]
+
     board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
     for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
             move_pairs_to_display):
@@ -598,6 +602,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         if i == 0 and annotated:
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
             footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
+
         latex_lines.append(f"\\subsubsection*{{{move_text}}}{footnote}")
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
@@ -609,27 +614,39 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         else:
             latex_lines.append("\\\\")
         latex_lines.append("\\end{tabularx}")
+
         if white_analysis or black_analysis:
+            def format_analysis(analysis, lang):
+                if not analysis:
+                    return "", ""  # Return two empty strings if no analysis
+
+                eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
+
+                # If the played move was NOT the best
+                if analysis['played_move'] != analysis['engine_best_move_from_pos'] and not analysis[
+                    'engine_eval_before_played_move'].is_mate():
+                    loss_str = f"\\textit{{{MESSAGES[lang]['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}"
+                    classification = classify_move_loss(analysis['cpl_for_move'], lang)
+                    best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
+
+                    separator = "\\text{\\textbar}"
+                    line1 = f"{eval_str} {separator} {loss_str}"
+                    line2 = f"{classification} ({best_move_str})"
+                    return line1, line2
+                else:
+                    # If the played move WAS the best
+                    line1 = f"{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
+                    return line1, ""
+
+            white_line1, white_line2 = format_analysis(white_analysis, lang)
+            black_line1, black_line2 = format_analysis(black_analysis, lang)
+
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-            white_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(white_analysis['eval_after_played_move'], lang)}}}" if white_analysis else ""
-            black_eval_line = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(black_analysis['eval_after_played_move'], lang)}}}" if black_analysis else ""
-            latex_lines.append(f"{white_eval_line} & {black_eval_line} \\\\")
-            white_details_line = ""
-            if white_analysis:
-                if white_analysis['played_move'] != white_analysis['engine_best_move_from_pos'] and not white_analysis[
-                    'engine_eval_before_played_move'].is_mate():
-                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(white_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {white_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(white_analysis['cpl_for_move'], lang)}"
-                else:
-                    white_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-            black_details_line = ""
-            if black_analysis:
-                if black_analysis['played_move'] != black_analysis['engine_best_move_from_pos'] and not black_analysis[
-                    'engine_eval_before_played_move'].is_mate():
-                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(black_analysis['engine_best_move_from_pos'].uci())}}}, \\textit{{{MESSAGES[lang]['loss_text']} {black_analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}, {classify_move_loss(black_analysis['cpl_for_move'], lang)}"
-                else:
-                    black_details_line = f"\\textit{{{MESSAGES[lang]['best_move_played_text']}}}"
-            latex_lines.append(f"{white_details_line} & {black_details_line} \\\\")
+            latex_lines.append(f"{white_line1} & {black_line1} \\\\")
+            if white_line2 or black_line2:  # Only add the second row if there's a "best move" line
+                latex_lines.append(f"{white_line2} & {black_line2} \\\\")
             latex_lines.append("\\end{tabularx}")
+
         latex_lines.append(r"\end{minipage}")
     return latex_lines
 
@@ -742,26 +759,27 @@ def _generate_termination_latex(game, lang='en'):
     return [f"\\par\\textbf{{{final_message}}}"]
 
 
-def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
-                         display_boards=False, board_scope="smart", lang='en', annotated=False):
+def export_game_to_latex(game, game_index, output_dir, analysis_data, args, annotated=False):
     """
     Exports a single chess game to a LaTeX file, now with annotation support.
     """
     latex = []
+    lang = args.language
     if annotated:
         # For the annotated example, we don't need the standard metadata header
         latex.extend(_generate_game_summary_latex(game, lang, annotated=True))
     else:
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
-    latex.extend(_generate_game_notation_latex(game, notation_type, lang, annotated=annotated))
-    latex.append(r"\nobreak")
-    # The analysis and board sections are conditional
+    latex.extend(_generate_game_notation_latex(game, args.notation_type, lang, annotated=annotated))
+
     if analysis_data:
         latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
-    if display_boards:
+
+    if args.display_boards:
         latex.extend(
-            _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
+            _generate_board_analysis_latex(game, analysis_data, False, args.board_scope, lang, annotated=annotated,
+                                           args=args))
 
     # Add the termination reason at the very end of the game content.
     latex.append(r"\nobreak")
@@ -778,19 +796,20 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
     lang = args.language
     print("Generating 'How to Read This Book' section...")
     title = MESSAGES[lang]['how_to_read_title']
+
     tex_master.append(r"\cleardoublepage")
     tex_master.append(f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}")
     tex_master.append(f"\\markboth{{{title}}}{{{title}}}")
+
     pgn_io = io.StringIO(OPERA_GAME_PGN)
     game = chess.pgn.read_game(pgn_io)
     analysis_data = []
     if engine:
         analysis_data = analyze_game_with_stockfish(game, engine)
     export_game_to_latex(
-        game, 0, output_dir, analysis_data, args.notation_type,
-        display_boards=args.display_boards, board_scope=args.board_scope,
-        lang=lang, annotated=True
+        game, 0, output_dir, analysis_data, args, annotated=True
     )
+
     tex_master.append(r"\input{how_to_read_example.tex}")
     tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
     tex_master.append(r"\cleardoublepage")
@@ -898,7 +917,6 @@ def generate_chess_book(args):
     # Now, add the rest of the header
     tex_master.append(get_latex_header_part1(settings))
 
-    # The rest of the function remains unchanged...
     _add_front_matter_page_to_latex(tex_master, args.dedication_file, args.language)
     _add_front_matter_page_to_latex(tex_master, args.epigraph_file, args.language)
     tex_master.append(LATEX_HEADER_PART2_TOC)
@@ -919,10 +937,9 @@ def generate_chess_book(args):
                 analysis_data = analyze_game_with_stockfish(game, engine)
             else:
                 print(MESSAGES[args.language]['skipping_stockfish_analysis'].format(game_num=idx + 1))
+
             export_game_to_latex(
-                game, idx + 1, output_dir, analysis_data, args.notation_type,
-                display_boards=args.display_boards,
-                board_scope=args.board_scope, lang=args.language
+                game, idx + 1, output_dir, analysis_data, args
             )
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
