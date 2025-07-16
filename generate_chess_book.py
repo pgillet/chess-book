@@ -175,6 +175,7 @@ MESSAGES = {
         'term_checkmate': '{player} won by checkmate',
         'term_resignation': '{player} won by resignation',
         'term_time': '{player} won on time',
+        'toc_title': 'Table of Contents',
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -242,6 +243,7 @@ MESSAGES = {
         'term_checkmate': '{player} a gagné par échec et mat',
         'term_resignation': '{player} a gagné par abandon',
         'term_time': '{player} a gagné au temps',
+        'toc_title': 'Table des Matières',
     }
 }
 
@@ -886,7 +888,17 @@ def generate_chess_book(args):
         games = [game for game in iter(lambda: chess.pgn.read_game(f), None)]
 
     settings = PAPER_SIZE_SETTINGS[args.paper_size]
-    tex_master = [get_latex_header_part1(settings)]
+
+    # This list will hold all our LaTeX code
+    tex_master = []
+
+    # Add the command to redefine the TOC title before the main header
+    tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
+
+    # Now, add the rest of the header
+    tex_master.append(get_latex_header_part1(settings))
+
+    # The rest of the function remains unchanged...
     _add_front_matter_page_to_latex(tex_master, args.dedication_file, args.language)
     _add_front_matter_page_to_latex(tex_master, args.epigraph_file, args.language)
     tex_master.append(LATEX_HEADER_PART2_TOC)
