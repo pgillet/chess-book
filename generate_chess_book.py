@@ -15,14 +15,14 @@ ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
 MAX_BOARDS_PER_PAGE = 6
 TWO_COLUMN_THRESHOLD = 25  # Number of full moves to trigger two-column layout
 
-# New settings dictionary for paper sizes
+# Defines all paper, font, margin, and board size settings.
 PAPER_SIZE_SETTINGS = {
-    # Bigger paper, smaller font/board
-    'a3': {'options': 'a3paper,9pt', 'board_size': '16pt'},
-    # Default
-    'a4': {'options': 'a4paper,10pt', 'board_size': '20pt'},
-    # Smaller paper, bigger font/board
-    'a5': {'options': 'a5paper,9pt', 'board_size': '16pt'},
+    'a5': {'paper': 'a5paper', 'font': '10pt', 'inner': '14mm', 'outer': '10mm', 'top': '16mm', 'bottom': '16mm',
+           'board_size': '18pt'},
+    'a4': {'paper': 'a4paper', 'font': '11pt', 'inner': '25mm', 'outer': '20mm', 'top': '20mm', 'bottom': '20mm',
+           'board_size': '20pt'},
+    'a3': {'paper': 'a3paper', 'font': '12pt', 'inner': '30mm', 'outer': '25mm', 'top': '20mm', 'bottom': '20mm',
+           'board_size': '24pt'},
 }
 
 INLINE_CHESS_SYMBOL = {
@@ -40,11 +40,16 @@ UNICODE_CHESS_SYMBOL = {
 }
 
 
-def get_latex_header_part1(documentclass_options):
-    # The f-string formatting has been corrected to prevent the NameError.
+def get_latex_header_part1(settings):
+    """
+    Generates the LaTeX header dynamically based on the chosen paper and margin settings.
+    """
+    documentclass_options = f"{settings['paper']},{settings['font']}"
+    geometry_options = f"inner={settings['inner']},outer={settings['outer']},top={settings['top']},bottom={settings['bottom']}"
+
     return dedent(fr'''
         \documentclass[{documentclass_options}]{{book}}
-        \usepackage[margin=0.7in]{{geometry}}
+        \usepackage[{geometry_options}]{{geometry}}
         \usepackage{{chessboard}}
         \usepackage{{multicol}}
         \usepackage{{fancyhdr}}
@@ -800,8 +805,7 @@ def generate_chess_book(args):
         games = [game for game in iter(lambda: chess.pgn.read_game(f), None)]
 
     settings = PAPER_SIZE_SETTINGS[args.paper_size]
-    tex_master = [get_latex_header_part1(settings['options'])]
-
+    tex_master = [get_latex_header_part1(settings)]
     _add_front_matter_page_to_latex(tex_master, args.dedication_file, args.language)
     _add_front_matter_page_to_latex(tex_master, args.epigraph_file, args.language)
     tex_master.append(LATEX_HEADER_PART2_TOC)
