@@ -167,6 +167,14 @@ MESSAGES = {
         'table_blunders': 'Blunders',
         'table_mistakes': 'Mistakes',
         'table_inaccuracies': 'Inaccuracies',
+        'term_agreement': 'Game drawn by agreement',
+        'term_repetition': 'Game drawn by repetition',
+        'term_stalemate': 'Game drawn by stalemate',
+        'term_timeout_vs_insufficient': 'Game drawn by timeout vs insufficient material',
+        'term_abandoned': '{player} won - game abandoned',
+        'term_checkmate': '{player} won by checkmate',
+        'term_resignation': '{player} won by resignation',
+        'term_time': '{player} won on time',
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -226,6 +234,14 @@ MESSAGES = {
         'table_blunders': 'Gaffes',
         'table_mistakes': 'Erreurs',
         'table_inaccuracies': 'Imprécisions',
+        'term_agreement': 'Partie nulle par accord mutuel',
+        'term_repetition': 'Partie nulle par répétition',
+        'term_stalemate': 'Partie nulle par pat',
+        'term_timeout_vs_insufficient': 'Partie nulle, temps écoulé contre matériel insuffisant',
+        'term_abandoned': '{player} a gagné - partie abandonnée',
+        'term_checkmate': '{player} a gagné par échec et mat',
+        'term_resignation': '{player} a gagné par abandon',
+        'term_time': '{player} a gagné au temps',
     }
 }
 
@@ -678,6 +694,52 @@ def translate_time_control(non_standard_tc: str) -> str:
         return "?"
 
 
+def _generate_termination_latex(game, lang='en'):
+    """
+    Parses the game's Termination header and returns a translated LaTeX string.
+    """
+    termination = game.headers.get("Termination")
+    if not termination:
+        return []
+
+    # Map the raw PGN termination reasons to our message keys
+    termination_map = {
+        "Game drawn by agreement": "term_agreement",
+        "Game drawn by repetition": "term_repetition",
+        "Game drawn by stalemate": "term_stalemate",
+        "Game drawn by timeout vs insufficient material": "term_timeout_vs_insufficient",
+        "won - game abandoned": "term_abandoned",
+        "won by checkmate": "term_checkmate",
+        "won by resignation": "term_resignation",
+        "won on time": "term_time",
+    }
+
+    player_name = ""
+    reason_key = ""
+
+    # Split the termination string to find the player and the reason
+    for reason, key in termination_map.items():
+        if reason in termination:
+            # The player's name is the part of the string BEFORE the reason
+            player_name = termination.replace(reason, "").strip()
+            reason_key = key
+            break
+
+    if not reason_key:
+        # Fallback for unknown termination reasons
+        return [f"\\par\\textbf{{{escape_latex_special_chars(termination)}}}"]
+
+    # Get the translated message
+    message_template = MESSAGES[lang].get(reason_key, "")
+
+    # Substitute the player's name into the translated string
+    # and escape any special LaTeX characters in the name.
+    final_message = message_template.format(player=escape_latex_special_chars(player_name))
+
+    # Return the final message, bolded and on a new paragraph.
+    return [f"\\par\\textbf{{{final_message}}}"]
+
+
 def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_type, show_mover=False,
                          display_boards=False, board_scope="smart", lang='en', annotated=False):
     """
@@ -685,14 +747,23 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, notation_t
     """
     latex = []
     if annotated:
+        # For the annotated example, we don't need the standard metadata header
         latex.extend(_generate_game_summary_latex(game, lang, annotated=True))
     else:
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
-    latex.extend(_generate_game_notation_latex(game, args.notation_type, lang, annotated=annotated))
+
+    latex.extend(_generate_game_notation_latex(game, notation_type, lang, annotated=annotated))
     latex.append(r"\nobreak")
-    latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
+    # The analysis and board sections are conditional
+    if analysis_data:
+        latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
     if display_boards:
-        latex.extend(_generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
+        latex.extend(
+            _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang, annotated=annotated))
+
+    # Add the termination reason at the very end of the game content.
+    latex.append(r"\nobreak")
+    latex.extend(_generate_termination_latex(game, lang))
 
     file_name = "how_to_read_example.tex" if annotated else f"game_{game_index:03}.tex"
     with open(output_dir / file_name, "w", encoding='utf-8') as f:
