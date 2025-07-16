@@ -545,8 +545,7 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays and their analysis,
-    now with a guaranteed second line for alignment.
+    Generates the LaTeX for move-by-move board displays, including comments from the PGN as footnotes.
     """
     fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
@@ -555,16 +554,25 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
     board_for_display = game.board()
     moves_list = list(game.mainline_moves())
+    nodes = list(game.mainline())  # Get nodes to access comments
     all_calculated_move_pairs = []
+
     for i in range(0, len(moves_list), 2):
         current_move_pair_text = f"{(i // 2) + 1}."
         fen1, marked_sq1, fen2, marked_sq2 = "", "", "", ""
+
         white_move_obj = moves_list[i] if i < len(moves_list) else None
+        white_node = nodes[i] if white_move_obj else None
+
         black_move_obj = moves_list[i + 1] if (i + 1) < len(moves_list) else None
+        black_node = nodes[i + 1] if black_move_obj else None
+
         white_analysis_data = analysis_data[i] if white_move_obj and i < len(analysis_data) else None
         black_analysis_data = analysis_data[i + 1] if black_move_obj and (i + 1) < len(analysis_data) else None
+
         has_cpl_in_pair = (white_analysis_data and white_analysis_data['cpl_for_move'] > 0) or \
                           (black_analysis_data and black_analysis_data['cpl_for_move'] > 0)
+
         if white_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
             if board_for_display.is_castling(white_move_obj):
@@ -575,6 +583,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                 marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
             board_for_display.push(white_move_obj)
             fen1 = board_for_display.board_fen()
+
         if black_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
             if board_for_display.is_castling(black_move_obj):
@@ -587,8 +596,10 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             fen2 = board_for_display.board_fen()
         else:
             fen2, marked_sq2 = fen1, ""
+
+        # Append all data, including the nodes for comment processing
         all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2,
-                                          marked_sq2, black_analysis_data, has_cpl_in_pair))
+                                          marked_sq2, black_analysis_data, has_cpl_in_pair, white_node, black_node))
 
     move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
                                                                                     all_calculated_move_pairs if
@@ -597,14 +608,31 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         move_pairs_to_display = all_calculated_move_pairs[5:6]
 
     board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
-    for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _) in enumerate(
-            move_pairs_to_display):
-        footnote = ""
+    for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _, white_node,
+            black_node) in enumerate(move_pairs_to_display):
+
+        # --- Handle all footnotes here ---
+        footnote_text = ""
+        # Technical footnote for the "How to Read" section
         if i == 0 and annotated:
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
-            footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
+            footnote_text = MESSAGES[lang][key]
 
-        latex_lines.append(f"\\subsubsection*{{{move_text}}}{footnote}")
+        # Check for player comments
+        white_comment = white_node.comment if white_node and white_node.comment and not white_node.comment.strip().startswith(
+            '[%') else None
+        black_comment = black_node.comment if black_node and black_node.comment and not black_node.comment.strip().startswith(
+            '[%') else None
+
+        # Combine comments into a single footnote, separated by a paragraph break
+        if white_comment:
+            footnote_text += f"\\par {escape_latex_special_chars(white_comment)}"
+        if black_comment:
+            footnote_text += f"\\par {escape_latex_special_chars(black_comment)}"
+
+        final_footnote = f"\\footnote{{{footnote_text}}}" if footnote_text else ""
+
+        latex_lines.append(f"\\subsubsection*{{{move_text}}}{final_footnote}")
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
         latex_lines.append(
