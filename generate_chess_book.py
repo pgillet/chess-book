@@ -353,7 +353,7 @@ def format_pgn_date(pgn_date, lang='en'):
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
     Generates the LaTeX for the game notation. For long games, it uses a two-column
-    tabbing environment with tight spacing. For shorter games, it uses a single-column table.
+    tabbing environment for perfect alignment and minimal spacing.
     """
     footnote = ""
     if annotated:
@@ -363,17 +363,21 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     latex_lines = [f"\\subsection*{{{''}}}{footnote}"]
 
     moves = list(game.mainline_moves())
+    # Handle games with no moves to prevent LaTeX errors.
+    if not moves:
+        return latex_lines
+
     num_full_moves = (len(moves) + 1) // 2
 
     # The annotated example is always single-column.
     use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
     if use_two_columns:
-        # --- TWO-COLUMN LAYOUT FOR LONG GAMES using tabbing for minimal space ---
+        # --- TWO-COLUMN LAYOUT using tabbing for minimal, aligned columns ---
         latex_lines.append(r"\begin{multicols}{2}[\noindent]")
         latex_lines.append(r"\begin{tabbing}")
-        # Set tab stops based on wide placeholder text to ensure minimal width.
-        latex_lines.append(r"888.\ \= WWWWWW\ \= WWWWWW \= \kill")
+        # It sets tab stops based on the width of realistic wide moves, creating tight columns.
+        latex_lines.append(r"888.\ \= O-O-O\ \= O-O-O \kill")
 
         temp_board = game.board()
         for i in range(0, len(moves), 2):
@@ -395,13 +399,15 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                     piece = temp_board.piece_at(move.from_square)
                     if piece and piece.piece_type != chess.PAWN:
                         figurine_cmd = _get_chess_figurine(piece.symbol())
-                        return figurine_cmd + " " + escape_latex_special_chars(san[1:])
+                        # For figurines, we only take the part of the SAN after the piece letter
+                        san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
+                        return figurine_cmd + " " + escape_latex_special_chars(san_suffix)
                 return escape_latex_special_chars(san)
 
             white_str = get_formatted_san(white_san, white_move)
             black_str = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
 
-            # Use tabs (\>) to align each part of the move notation.
+            # The first item on the line is NOT preceded by \>
             latex_lines.append(f"{move_number_str} \\> {white_str} \\> {black_str} \\\\")
 
             temp_board.push(white_move)
@@ -430,7 +436,9 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                 if moving_piece and moving_piece.piece_type != chess.PAWN:
                     piece_symbol = moving_piece.symbol()
                     figurine_cmd = _get_chess_figurine(piece_symbol)
-                    white_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(white_san[1:])
+                    # For figurines, we only take the part of the SAN after the piece letter
+                    san_suffix = white_san[1:] if white_san and white_san[0].upper() in 'NBRQK' else white_san
+                    white_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(san_suffix)
                 else:
                     white_move_str_latex = escape_latex_special_chars(white_san)
             else:
@@ -446,7 +454,9 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                     if moving_piece and moving_piece.piece_type != chess.PAWN:
                         piece_symbol = moving_piece.symbol()
                         figurine_cmd = _get_chess_figurine(piece_symbol)
-                        black_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(black_san[1:])
+                        # For figurines, we only take the part of the SAN after the piece letter
+                        san_suffix = black_san[1:] if black_san and black_san[0].upper() in 'NBRQK' else black_san
+                        black_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(san_suffix)
                     else:
                         black_move_str_latex = escape_latex_special_chars(black_san)
                 else:
