@@ -545,16 +545,16 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays, including comments from the PGN as footnotes.
+    Generates the LaTeX for move-by-move board displays, attaching comments to the
+    specific move analysis they belong to.
     """
-    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
         return latex_lines
 
     board_for_display = game.board()
     moves_list = list(game.mainline_moves())
-    nodes = list(game.mainline())  # Get nodes to access comments
+    nodes = list(game.mainline())
     all_calculated_move_pairs = []
 
     for i in range(0, len(moves_list), 2):
@@ -611,28 +611,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _, white_node,
             black_node) in enumerate(move_pairs_to_display):
 
-        # --- Handle all footnotes here ---
-        footnote_text = ""
-        # Technical footnote for the "How to Read" section
-        if i == 0 and annotated:
-            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
-            footnote_text = MESSAGES[lang][key]
-
-        # Check for player comments
-        white_comment = white_node.comment if white_node and white_node.comment and not white_node.comment.strip().startswith(
-            '[%') else None
-        black_comment = black_node.comment if black_node and black_node.comment and not black_node.comment.strip().startswith(
-            '[%') else None
-
-        # Combine comments into a single footnote, separated by a paragraph break
-        if white_comment:
-            footnote_text += f"\\par {escape_latex_special_chars(white_comment)}"
-        if black_comment:
-            footnote_text += f"\\par {escape_latex_special_chars(black_comment)}"
-
-        final_footnote = f"\\footnote{{{footnote_text}}}" if footnote_text else ""
-
-        latex_lines.append(f"\\subsubsection*{{{move_text}}}{final_footnote}")
+        latex_lines.append(f"\\subsubsection*{{{move_text}}}")
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
         latex_lines.append(
@@ -645,31 +624,41 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         latex_lines.append("\\end{tabularx}")
 
         if white_analysis or black_analysis:
-            def format_analysis(analysis, lang):
+            # The footnote logic is now entirely inside this helper function
+            def format_analysis(analysis, node, is_first_block):
                 if not analysis:
-                    return "", ""  # Return two empty strings if no analysis
+                    return "", ""
+
+                footnote = ""
+                # Technical footnote for the "How to Read" section
+                if is_first_block and annotated:
+                    key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
+                    footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
+
+                # Player comment footnote
+                comment = node.comment if node and node.comment and not node.comment.strip().startswith('[%') else None
+                if comment:
+                    footnote += f"\\footnote{{{escape_latex_special_chars(comment)}}}"
 
                 eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
 
-                # If the played move was NOT the best
                 if analysis['played_move'] != analysis['engine_best_move_from_pos'] and not analysis[
                     'engine_eval_before_played_move'].is_mate():
                     loss_str = f"\\textit{{{MESSAGES[lang]['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}"
                     classification = classify_move_loss(analysis['cpl_for_move'], lang)
                     best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
-
                     separator = "\\text{\\textbar}"
-                    line1 = f"{eval_str} {separator} {loss_str}"
+                    line1 = f"{footnote}{eval_str} {separator} {loss_str}"
                     line2 = f"{classification} ({best_move_str})"
                     return line1, line2
                 else:
                     # If the played move WAS the best
-                    line1 = f"{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
+                    line1 = f"{footnote}{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
                     # Return a \strut to create an empty line with standard height.
                     return line1, "\\strut"
 
-            white_line1, white_line2 = format_analysis(white_analysis, lang)
-            black_line1, black_line2 = format_analysis(black_analysis, lang)
+            white_line1, white_line2 = format_analysis(white_analysis, white_node, True)
+            black_line1, black_line2 = format_analysis(black_analysis, black_node, False)
 
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
             latex_lines.append(f"{white_line1} & {black_line1} \\\\")
