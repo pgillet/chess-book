@@ -545,7 +545,8 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays and their analysis using the new balanced format.
+    Generates the LaTeX for move-by-move board displays and their analysis,
+    now with a guaranteed second line for alignment.
     """
     fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
@@ -636,15 +637,16 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                 else:
                     # If the played move WAS the best
                     line1 = f"{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
-                    return line1, ""
+                    # Return a \strut to create an empty line with standard height.
+                    return line1, "\\strut"
 
             white_line1, white_line2 = format_analysis(white_analysis, lang)
             black_line1, black_line2 = format_analysis(black_analysis, lang)
 
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
             latex_lines.append(f"{white_line1} & {black_line1} \\\\")
-            if white_line2 or black_line2:  # Only add the second row if there's a "best move" line
-                latex_lines.append(f"{white_line2} & {black_line2} \\\\")
+
+            latex_lines.append(f"{white_line2} & {black_line2} \\\\")
             latex_lines.append("\\end{tabularx}")
 
         latex_lines.append(r"\end{minipage}")
