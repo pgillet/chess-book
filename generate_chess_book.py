@@ -227,7 +227,7 @@ MESSAGES = {
         'fn_notation_figurine': 'Les coups de la partie sont listés en notation figurine, où un symbole représente chaque pièce.',
         'fn_analysis_summary': 'Un résumé de l\'analyse par ordinateur, incluant la perte moyenne de centipions (CPL) pour chaque joueur. Un CPL plus bas est meilleur.',
         'fn_board_diagram_all': 'Les diagrammes d\'échiquier sont affichés pour chaque paire de coups. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
-        'fn_board_diagram_smart': 'Les diagrammes d\'échiquier ne sont affichés que pour les paires de coups "intelligentes", où au moins un coup était intéressant ou imprécis. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite est après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
+        'fn_board_diagram_smart': 'Les diagrammes d\'échiquier ne sont affichés que pour les paires de coups "intelligentes", où au moins un coup était intéressant. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite est après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
         'how_to_read_title': 'Comment Lire ce Livre',
         'table_metric': 'Métrique',
         'table_white': 'Blancs',
