@@ -41,64 +41,63 @@
   % Styles for positioning the bar, which is more robust than \ifstrequal in a node
   bar on right/.style={anchor=south west, at=(board.south east), xshift=\bwbBarGap},
   bar on left/.style={anchor=south east, at=(board.south west), xshift=-\bwbBarGap},
-  % Setup key to robustly handle multi-line arguments. This is a key part of the fix.
+  % Setup key to robustly handle multi-line arguments.
   setup/.style={#1}
 }
 
 %----------------------------------------------------------------------
 % The main \boardWithEval command definition (Final Robust Version)
-% We now use \NewDocumentCommand for a more robust argument parser,
-% which correctly handles multi-line optional arguments.
 % Usage: \boardWithEval[<options>]{<fen string>}
 %----------------------------------------------------------------------
 \newsavebox\bwbBox
 \NewDocumentCommand{\boardWithEval}{ O{} m }{%
   % Set default values then robustly process user-provided keys from the optional argument #1.
-  % The 'setup' key provides a robust mechanism to handle multi-line optional arguments.
   \pgfkeys{/boardwithbar/.cd, default, setup={#1}}%
-  % 1. Render the complex chessboard into a savebox. This isolates its rendering.
-  %    The FEN string (#2) is the mandatory argument.
-  \sbox\bwbBox{\chessboard[setfen={#2}, \bwbBoardOpts]}%
-  % 2. Pre-calculate all necessary dimensions BEFORE starting the TikZ picture.
-  \pgfmathsetmacro{\bwbBoardHeight}{\ht\bwbBox+\dp\bwbBox}% Get total height of the board box.
+
+  % 1. Robustly build the options list for \chessboard.
+  %    \edef ensures that \bwbBoardOpts is fully expanded before being used.
+  \edef\bwbTempOpts{setfen={#2}, \bwbBoardOpts}%
+
+  % 2. Render the chessboard into a savebox using the expanded options.
+  %    The \expandafter commands ensure \chessboard sees the clean, final option list.
+  \sbox\bwbBox{\expandafter\chessboard\expandafter[\bwbTempOpts]}%
+
+  % 3. Pre-calculate all necessary dimensions BEFORE starting the TikZ picture.
+  \pgfmathsetmacro{\bwbBoardHeight}{\ht\bwbBox+\dp\bwbBox}%
   \pgfmathsetmacro{\clampedeval}{min(max(\bwbEval, -\bwbMaxEval), \bwbMaxEval)}%
   \pgfmathsetmacro{\whiteheight}{(0.5 + (\clampedeval / \bwbMaxEval) / 2) * \bwbBoardHeight}%
-  % Use \leavevmode to ensure correct behavior at the start of a paragraph
+
   \leavevmode
-  % Use a tikzpicture environment with the 'baseline' option to align correctly with text
   \begin{tikzpicture}[baseline=(board.center)]
-    % 3. Place the pre-rendered box into a TikZ node. This is a safe operation.
+    % Place the pre-rendered box into a TikZ node.
     \node (board) [inner sep=0pt, outer sep=0pt] {\usebox\bwbBox};
 
-    % 4. Position and draw the evaluation bar container node using a style.
+    % Position and draw the evaluation bar container node using a style.
     \node (evalbar) [
         draw=\bwbBorderColor, rectangle, inner sep=0pt,
         minimum height=\bwbBoardHeight pt, minimum width=\bwbBarWidth,
-        /boardwithbar/bar on \bwbBarPos % Expands to 'bar on right' or 'bar on left'
+        /boardwithbar/bar on \bwbBarPos
     ] {};
 
-    % 5. Fill the bar using simple, separate path commands.
+    % Fill the bar using simple, separate path commands.
     \fill[\bwbWhiteColor] (evalbar.south west) rectangle ++(\bwbBarWidth, \whiteheight pt);
     \fill[\bwbBlackColor] (evalbar.south west) ++(0, \whiteheight pt) rectangle (evalbar.north east);
 
-    % 6. Optionally, display the numerical score if show-score=true
+    % Optionally, display the numerical score.
     \ifstrequal{\bwbShowScore}{true}
     {
       \pgfextra{
-        % Add a plus sign for positive evaluations for clarity
         \pgfmathparse{ifthenelse(\bwbEval >= 0, "+", "")}
         \let\sign\pgfmathresult
-        % Format the number to one decimal place
         \pgfmathprintnumberto[fixed, precision=1]{\bwbEval}{\evalstring}
       }
-      % Position the score text node above the bar, centered correctly.
       \node[anchor=south, inner sep=2pt, font=\bwbScoreFont] at (evalbar.north) {\sign\evalstring};
-    }{} % The empty {} is the 'else' part of this \ifstrequal
+    }{}
   \end{tikzpicture}%
 }
 
 %----------------------------------------------------------------------
-% Document Body - Example Usage (Using standard center environment)
+% Document Body - Example Usage
 %----------------------------------------------------------------------
 \begin{document}
 
@@ -107,21 +106,21 @@
 Here is a sample analysis demonstrating the command at various points in a game.
 
 \subsection*{Position 1: A Balanced Opening (Ruy Lopez)}
-After, we reach a standard position in the Ruy Lopez, Morphy Defense. The position is considered dynamically balanced, with a very slight initiative for White.
+After 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6, we reach a standard position in the Ruy Lopez, Morphy Defense. The position is considered dynamically balanced, with a very slight initiative for White.
 \begin{center}
 \boardWithEval[eval=0.2]{r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4}
 \end{center}
 
 \subsection*{Position 2: White's Clear Advantage (Kasparov vs. Topalov, 1999)}
-This position is from the famous game between Garry Kasparov and Veselin Topalov. After Kasparov's brilliant rook sacrifice, White has a powerful attack and a significant advantage.
+This position is from the famous game between Garry Kasparov and Veselin Topalov. After Kasparov's brilliant rook sacrifice 24. Rxd4!!, White has a powerful attack and a significant advantage.
 \begin{center}
-\boardWithEval[eval=4.5]{r1b3k1/1p3p1p/p1n1p1p1/8/2Rr1P2/2N2N2/PPP2P1P/2K5 b - - 1 24}
+\boardWithEval[eval=4.5, board-opts={showmover=true}]{r1b3k1/1p3p1p/p1n1p1p1/8/2Rr1P2/2N2N2/PPP2P1P/2K5 b - - 1 24}
 \end{center}
 
 \subsection*{Position 3: Black's Decisive Advantage (Byrne vs. Fischer, 1956)}
-From the "Game of the Century," this position arose after Bobby Fischer's stunning move. This quiet move unleashes a devastating attack, leaving Black with a completely winning position.
+From the "Game of the Century," this position arose after Bobby Fischer's stunning move 17... Be6!!. This quiet move unleashes a devastating attack, leaving Black with a completely winning position.
 \begin{center}
-\boardWithEval[eval=-6.1, max-eval=7.0]{1r2k2r/p1p3pp/2n1bn2/1p2pp2/2P2P2/1PNP1N2/P1Q1P1BP/1R3RK1 b k - 0 18}
+\boardWithEval[eval=-6.1, max-eval=7.0, board-opts={showmover=true}]{1r2k2r/p1p3pp/2n1bn2/1p2pp2/2P2P2/1PNP1N2/P1Q1P1BP/1R3RK1 b k - 0 18}
 \end{center}
 
 \subsection*{Position 4: Customization Showcase}
