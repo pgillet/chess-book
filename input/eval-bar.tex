@@ -1,0 +1,144 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{xskak}
+\usepackage{tikz}
+\usetikzlibrary{calc, positioning}
+\usepackage{pgfkeys}
+\usepackage{etoolbox} % Required for \ifstrequal
+\usepackage{xparse}   % For the robust \NewDocumentCommand
+
+%----------------------------------------------------------------------
+% Key-value interface for the \boardWithEval command
+%----------------------------------------------------------------------
+\pgfkeys{
+  /boardwithbar/.is family, /boardwithbar,
+  default/.style = {
+    eval = 0.0,
+    board-opts = {},
+    bar-position = right,
+    bar-gap = 5pt,
+    bar-width = 8pt,
+    white-color = gray!10,
+    black-color = gray!80,
+    border-color = black,
+    max-eval = 5.0,
+    show-score = false,
+    score-font = \small
+  },
+  eval/.store in = \bwbEval,
+  board-opts/.store in = \bwbBoardOpts,
+  bar-position/.store in = \bwbBarPos,
+  bar-gap/.store in = \bwbBarGap,
+  bar-width/.store in = \bwbBarWidth,
+  white-color/.store in = \bwbWhiteColor,
+  black-color/.store in = \bwbBlackColor,
+  border-color/.store in = \bwbBorderColor,
+  max-eval/.store in = \bwbMaxEval,
+  show-score/.store in = \bwbShowScore,
+  score-font/.store in = \bwbScoreFont,
+  % Styles for positioning the bar, which is more robust than \ifstrequal in a node
+  bar on right/.style={anchor=south west, at=(board.south east), xshift=\bwbBarGap},
+  bar on left/.style={anchor=south east, at=(board.south west), xshift=-\bwbBarGap},
+  % Setup key to robustly handle multi-line arguments. This is a key part of the fix.
+  setup/.style={#1}
+}
+
+%----------------------------------------------------------------------
+% The main \boardWithEval command definition (Final Robust Version)
+% We now use \NewDocumentCommand for a more robust argument parser,
+% which correctly handles multi-line optional arguments.
+% Usage: \boardWithEval[<options>]{<fen string>}
+%----------------------------------------------------------------------
+\newsavebox\bwbBox
+\NewDocumentCommand{\boardWithEval}{ O{} m }{%
+  % Set default values then robustly process user-provided keys from the optional argument #1.
+  % The 'setup' key provides a robust mechanism to handle multi-line optional arguments.
+  \pgfkeys{/boardwithbar/.cd, default, setup={#1}}%
+  % 1. Render the complex chessboard into a savebox. This isolates its rendering.
+  %    The FEN string (#2) is the mandatory argument.
+  \sbox\bwbBox{\chessboard[setfen={#2}, \bwbBoardOpts]}%
+  % 2. Pre-calculate all necessary dimensions BEFORE starting the TikZ picture.
+  \pgfmathsetmacro{\bwbBoardHeight}{\ht\bwbBox+\dp\bwbBox}% Get total height of the board box.
+  \pgfmathsetmacro{\clampedeval}{min(max(\bwbEval, -\bwbMaxEval), \bwbMaxEval)}%
+  \pgfmathsetmacro{\whiteheight}{(0.5 + (\clampedeval / \bwbMaxEval) / 2) * \bwbBoardHeight}%
+  % Use \leavevmode to ensure correct behavior at the start of a paragraph
+  \leavevmode
+  % Use a tikzpicture environment with the 'baseline' option to align correctly with text
+  \begin{tikzpicture}[baseline=(board.center)]
+    % 3. Place the pre-rendered box into a TikZ node. This is a safe operation.
+    \node (board) [inner sep=0pt, outer sep=0pt] {\usebox\bwbBox};
+
+    % 4. Position and draw the evaluation bar container node using a style.
+    \node (evalbar) [
+        draw=\bwbBorderColor, rectangle, inner sep=0pt,
+        minimum height=\bwbBoardHeight pt, minimum width=\bwbBarWidth,
+        /boardwithbar/bar on \bwbBarPos % Expands to 'bar on right' or 'bar on left'
+    ] {};
+
+    % 5. Fill the bar using simple, separate path commands.
+    \fill[\bwbWhiteColor] (evalbar.south west) rectangle ++(\bwbBarWidth, \whiteheight pt);
+    \fill[\bwbBlackColor] (evalbar.south west) ++(0, \whiteheight pt) rectangle (evalbar.north east);
+
+    % 6. Optionally, display the numerical score if show-score=true
+    \ifstrequal{\bwbShowScore}{true}
+    {
+      \pgfextra{
+        % Add a plus sign for positive evaluations for clarity
+        \pgfmathparse{ifthenelse(\bwbEval >= 0, "+", "")}
+        \let\sign\pgfmathresult
+        % Format the number to one decimal place
+        \pgfmathprintnumberto[fixed, precision=1]{\bwbEval}{\evalstring}
+      }
+      % Position the score text node above the bar, centered correctly.
+      \node[anchor=south, inner sep=2pt, font=\bwbScoreFont] at (evalbar.north) {\sign\evalstring};
+    }{} % The empty {} is the 'else' part of this \ifstrequal
+  \end{tikzpicture}%
+}
+
+%----------------------------------------------------------------------
+% Document Body - Example Usage (Using standard center environment)
+%----------------------------------------------------------------------
+\begin{document}
+
+\section*{Showcase of the \texttt{\textbackslash boardWithEval} Command}
+
+Here is a sample analysis demonstrating the command at various points in a game.
+
+\subsection*{Position 1: A Balanced Opening (Ruy Lopez)}
+After, we reach a standard position in the Ruy Lopez, Morphy Defense. The position is considered dynamically balanced, with a very slight initiative for White.
+\begin{center}
+\boardWithEval[eval=0.2]{r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4}
+\end{center}
+
+\subsection*{Position 2: White's Clear Advantage (Kasparov vs. Topalov, 1999)}
+This position is from the famous game between Garry Kasparov and Veselin Topalov. After Kasparov's brilliant rook sacrifice, White has a powerful attack and a significant advantage.
+\begin{center}
+\boardWithEval[eval=4.5]{r1b3k1/1p3p1p/p1n1p1p1/8/2Rr1P2/2N2N2/PPP2P1P/2K5 b - - 1 24}
+\end{center}
+
+\subsection*{Position 3: Black's Decisive Advantage (Byrne vs. Fischer, 1956)}
+From the "Game of the Century," this position arose after Bobby Fischer's stunning move. This quiet move unleashes a devastating attack, leaving Black with a completely winning position.
+\begin{center}
+\boardWithEval[eval=-6.1, max-eval=7.0]{1r2k2r/p1p3pp/2n1bn2/1p2pp2/2P2P2/1PNP1N2/P1Q1P1BP/1R3RK1 b k - 0 18}
+\end{center}
+
+\subsection*{Position 4: Customization Showcase}
+The command is highly customizable. Here, the bar is placed on the left, its colors are changed to light blue and dark red, it's made wider, and the numerical score is displayed above it.
+\begin{center}
+% The multi-line options are now safe to use.
+\boardWithEval[
+  eval=-1.2,
+  bar-position=left,
+  bar-width=12pt,
+  bar-gap=8pt,
+  white-color=blue!20,
+  black-color=red!60!black,
+  border-color=gray,
+  show-score=true,
+  score-font=\bfseries\small
+]{4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1}
+\end{center}
+
+\end{document}
