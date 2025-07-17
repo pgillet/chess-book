@@ -420,7 +420,7 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                         figurine_cmd = _get_chess_figurine(piece.symbol())
                         # For figurines, we only take the part of the SAN after the piece letter
                         san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
-                        return figurine_cmd + " " + escape_latex_special_chars(san_suffix)
+                        return figurine_cmd + escape_latex_special_chars(san_suffix)
                 return escape_latex_special_chars(san)
 
             white_str = get_formatted_san(white_san, white_move)
@@ -457,7 +457,7 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                     figurine_cmd = _get_chess_figurine(piece_symbol)
                     # For figurines, we only take the part of the SAN after the piece letter
                     san_suffix = white_san[1:] if white_san and white_san[0].upper() in 'NBRQK' else white_san
-                    white_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(san_suffix)
+                    white_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
                 else:
                     white_move_str_latex = escape_latex_special_chars(white_san)
             else:
@@ -475,7 +475,7 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                         figurine_cmd = _get_chess_figurine(piece_symbol)
                         # For figurines, we only take the part of the SAN after the piece letter
                         san_suffix = black_san[1:] if black_san and black_san[0].upper() in 'NBRQK' else black_san
-                        black_move_str_latex = figurine_cmd + " " + escape_latex_special_chars(san_suffix)
+                        black_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
                     else:
                         black_move_str_latex = escape_latex_special_chars(black_san)
                 else:
