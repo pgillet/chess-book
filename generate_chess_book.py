@@ -754,6 +754,7 @@ def _generate_termination_latex(game, lang='en'):
 
     player_name = ""
     reason_key = ""
+    prefix = "\\nobreak\\strut"
 
     # Split the termination string to find the player and the reason
     for reason, key in termination_map.items():
@@ -765,7 +766,7 @@ def _generate_termination_latex(game, lang='en'):
 
     if not reason_key:
         # Fallback for unknown termination reasons
-        return [f"\\par\\textbf{{{escape_latex_special_chars(termination)}}}"]
+        return [f"{prefix}\\par\\textbf{{{escape_latex_special_chars(termination)}}}"]
 
     # Get the translated message
     message_template = MESSAGES[lang].get(reason_key, "")
@@ -775,7 +776,7 @@ def _generate_termination_latex(game, lang='en'):
     final_message = message_template.format(player=escape_latex_special_chars(player_name))
 
     # Return the final message, bolded and on a new paragraph.
-    return [f"\\par\\textbf{{{final_message}}}"]
+    return [f"{prefix}\\par\\textbf{{{final_message}}}"]
 
 
 def export_game_to_latex(game, game_index, output_dir, analysis_data, args, annotated=False):
@@ -801,7 +802,6 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, args, anno
                                            args=args))
 
     # Add the termination reason at the very end of the game content.
-    latex.append(r"\nobreak")
     latex.extend(_generate_termination_latex(game, lang))
 
     file_name = "how_to_read_example.tex" if annotated else f"game_{game_index:03}.tex"
