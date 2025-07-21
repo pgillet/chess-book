@@ -182,23 +182,31 @@ def handle_build(args):
         print(f"Error: Stockfish engine not found at '{ENGINE_PATH}'")
         sys.exit(1)
 
-    with open(args.input_pgn) as pgn_file:
+    # --- START OF FIX ---
+    # This new method robustly reads one game at a time while capturing its raw text.
+    with open(args.input_pgn, "r", encoding="utf-8") as pgn_file:
         game_num = 1
         while True:
-            # We need the raw PGN string for each game
-            pgn_str = ""
-            while True:
-                line = pgn_file.readline()
-                if not line or (line.strip() == "" and pgn_str.strip() != ""):
-                    # End of game or end of file
-                    break
-                pgn_str += line
+            # Get the starting position of the game in the file
+            start_pos = pgn_file.tell()
+
+            # Use the library to read the game, which advances the file pointer
+            game = chess.pgn.read_game(pgn_file)
+            if game is None:
+                break  # End of file
+
+            # Get the ending position
+            end_pos = pgn_file.tell()
+
+            # Go back to the start and read the raw text for this game
+            pgn_file.seek(start_pos)
+            pgn_str = pgn_file.read(end_pos - start_pos)
+
+            # Ensure the file pointer is set for the next read_game() call
+            pgn_file.seek(end_pos)
+            # --- END OF FIX ---
 
             if not pgn_str.strip():
-                break  # Reached end of file
-
-            game = chess.pgn.read_game(io.StringIO(pgn_str))
-            if game is None:
                 continue
 
             print(f"Analyzing game {game_num} ({game.headers.get('Link', '')})...")
