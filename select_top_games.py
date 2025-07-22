@@ -1,42 +1,24 @@
 import argparse
-import io
-
 import chess.pgn
 import chess.engine
 import sys
 import sqlite3
 from datetime import datetime
 import os
+import math  # Needed for standard deviation calculation
 
 # --- CONFIGURATION ---
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"
 
 # --- DATABASE SCHEMA ---
-# This dictionary defines the table schema.
-# Keys are the desired column names.
-# Values are their corresponding SQL data types.
 DB_SCHEMA = {
-    "Link": "TEXT PRIMARY KEY",
-    "Event": "TEXT",
-    "Site": "TEXT",
-    "Date": "TEXT",
-    "Round": "TEXT",
-    "White": "TEXT",
-    "Black": "TEXT",
-    "Result": "TEXT",
-    "WhiteElo": "INTEGER",
-    "BlackElo": "INTEGER",
-    "TimeControl": "TEXT",
-    "Termination": "TEXT",
-    "game_datetime": "TIMESTAMP",
-    "winner": "TEXT",
-    "num_moves": "INTEGER",
-    "white_cpl": "REAL",
-    "black_cpl": "REAL",
-    "avg_cpl": "REAL",
-    "blunders": "INTEGER",
-    "mistakes": "INTEGER",
-    "quality_score": "REAL",
+    "Link": "TEXT PRIMARY KEY", "Event": "TEXT", "Site": "TEXT", "Date": "TEXT",
+    "Round": "TEXT", "White": "TEXT", "Black": "TEXT", "Result": "TEXT",
+    "WhiteElo": "INTEGER", "BlackElo": "INTEGER", "TimeControl": "TEXT",
+    "Termination": "TEXT", "game_datetime": "TIMESTAMP", "winner": "TEXT",
+    "num_moves": "INTEGER", "white_cpl": "REAL", "black_cpl": "REAL",
+    "avg_cpl": "REAL", "cpl_std_dev": "REAL",  # New metric
+    "blunders": "INTEGER", "mistakes": "INTEGER", "quality_score": "REAL",
     "raw_pgn": "TEXT"
 }
 
@@ -85,7 +67,7 @@ def insert_game(conn, game_data):
 # --- GAME ANALYSIS FUNCTIONS ---
 
 def analyze_game(game, engine):
-    """Analyzes a game with Stockfish to get CPL for each move."""
+    """Analyzes a game with Stockfish to get the CPL for each move."""
     analysis_results = []
     board = game.board()
     if not list(game.mainline_moves()):
@@ -111,57 +93,121 @@ def analyze_game(game, engine):
     return analysis_results
 
 
-def process_game(game, analysis_results, raw_pgn_str):
-    """Processes game headers and analysis to create a dictionary for the DB."""
+def calculate_game_score(game, analysis_results):
+    """
+    Calculates a 'quality score' and returns a detailed dictionary of metrics,
+    with a stronger penalty for very short games.
+    """
     if not analysis_results:
-        return None
+        return 0, {}
 
     headers = game.headers
-    num_moves = len(list(game.mainline_moves()))
+    moves = list(game.mainline_moves())
+    num_moves = len(moves)
 
-    # --- Collect all data for the database row ---
+    # --- METRICS ---
+    white_cpls = [d['cpl'] for d in analysis_results if d['is_white_move']]
+    black_cpls = [d['cpl'] for d in analysis_results if not d['is_white_move']]
+    white_cpl = sum(white_cpls) / len(white_cpls) if white_cpls else 0
+    black_cpl = sum(black_cpls) / len(black_cpls) if black_cpls else 0
+    avg_cpl = (white_cpl + black_cpl) / 2
+
+    variance = ((white_cpl - avg_cpl) ** 2 + (black_cpl - avg_cpl) ** 2) / 2
+    cpl_std_dev = math.sqrt(variance)
+
+    blunders = sum(1 for d in analysis_results if d['cpl'] >= 200)
+    mistakes = sum(1 for d in analysis_results if 100 <= d['cpl'] < 200)
+
+    # --- UPDATED LENGTH SCORE LOGIC ---
+    # Apply a heavy penalty for games with fewer than 30 half-moves (15 full moves).
+    length_score = 0
+    if num_moves < 30:
+        length_score = -50  # Heavy malus for short games
+    elif 30 <= num_moves <= 120:
+        length_score = 10  # Bonus for ideal length
+
+    result_bonus = 20 if "checkmate" in headers.get("Termination", "").lower() else (
+        5 if headers.get("Result") in ["1-0", "0-1"] else 0)
+
+    # --- UPDATED SCORING FORMULA ---
+    cpl_score = (100 - avg_cpl)
+    excitement_score = (blunders * 2) + (mistakes * 1)
+    consistency_bonus = max(0, 15 - cpl_std_dev)
+
+    final_score = cpl_score + excitement_score + length_score + result_bonus + consistency_bonus
+
+    metrics = {
+        "white": headers.get("White", "?"), "black": headers.get("Black", "?"),
+        "result": headers.get("Result", "*"), "avg_cpl": avg_cpl,
+        "cpl_std_dev": cpl_std_dev, "blunders": blunders, "mistakes": mistakes,
+        "length_score": length_score,  # Changed from "length_bonus"
+        "result_bonus": result_bonus,
+        "consistency_bonus": consistency_bonus, "final_score": final_score,
+        "white_cpl": white_cpl, "black_cpl": black_cpl
+    }
+
+    return final_score, metrics
+
+
+def process_game(game, analysis_results, raw_pgn_str):
+    """
+    Processes game headers and analysis.
+    Returns two dictionaries: one for the DB, and one with detailed metrics for printing.
+    """
+    score, metrics = calculate_game_score(game, analysis_results)
+    if not metrics:
+        return None, None
+
+    headers = game.headers
+    # --- Prepare data for the database ---
     game_data = {col: headers.get(col, None) for col in DB_SCHEMA if col in headers}
 
-    # Add raw PGN
     game_data['raw_pgn'] = raw_pgn_str
-
-    # Add deduced columns
     try:
         utc_date = headers.get("UTCDate", "1970.01.01")
         utc_time = headers.get("UTCTime", "00:00:00")
         game_data['game_datetime'] = datetime.strptime(f"{utc_date} {utc_time}", "%Y.%m.%d %H:%M:%S")
     except ValueError:
-        game_data['game_datetime'] = None  # Handle malformed dates
+        game_data['game_datetime'] = None
 
     result = headers.get("Result", "*")
-    if result == "1-0":
-        game_data['winner'] = "White"
-    elif result == "0-1":
-        game_data['winner'] = "Black"
-    else:
-        game_data['winner'] = "Draw"
+    game_data['winner'] = "White" if result == "1-0" else ("Black" if result == "0-1" else "Draw")
 
-    # Add analysis metrics
-    game_data['num_moves'] = num_moves
-    white_cpls = [d['cpl'] for d in analysis_results if d['is_white_move']]
-    black_cpls = [d['cpl'] for d in analysis_results if not d['is_white_move']]
-    game_data['white_cpl'] = sum(white_cpls) / len(white_cpls) if white_cpls else 0
-    game_data['black_cpl'] = sum(black_cpls) / len(black_cpls) if black_cpls else 0
-    game_data['avg_cpl'] = (game_data['white_cpl'] + game_data['black_cpl']) / 2
-    game_data['blunders'] = sum(1 for d in analysis_results if d['cpl'] >= 200)
-    game_data['mistakes'] = sum(1 for d in analysis_results if 100 <= d['cpl'] < 200)
+    # Add analysis metrics to the database dictionary
+    game_data['num_moves'] = len(list(game.mainline_moves()))
+    game_data['white_cpl'] = metrics['white_cpl']
+    game_data['black_cpl'] = metrics['black_cpl']
+    game_data['avg_cpl'] = metrics['avg_cpl']
+    game_data['cpl_std_dev'] = metrics['cpl_std_dev']
+    game_data['blunders'] = metrics['blunders']
+    game_data['mistakes'] = metrics['mistakes']
+    game_data['quality_score'] = score
 
-    # Calculate quality score
-    length_bonus = 10 if 20 <= num_moves <= 120 else 0
-    result_bonus = 20 if "checkmate" in headers.get("Termination", "").lower() else (
-        5 if result in ["1-0", "0-1"] else 0)
-    game_data['quality_score'] = (100 - game_data['avg_cpl']) + (game_data['blunders'] * 2) + (
-                game_data['mistakes'] * 1) + length_bonus + result_bonus
-
-    return game_data
+    # Return both the DB-ready data and the detailed metrics for printing
+    return game_data, metrics
 
 
-# --- MAIN HANDLERS ---
+def print_game_analysis_summary(metrics):
+    """
+    Prints a formatted summary of the game's analysis metrics to the console.
+    """
+    if not metrics:
+        return
+
+    print("-" * 40)
+    print(f"  Game: {metrics['white']} vs {metrics['black']} ({metrics['result']})")
+    print(f"  Overall Score: {metrics['final_score']:.2f}")
+    print("  --- Metrics ---")
+    print(f"  Avg. CPL: {metrics['avg_cpl']:.2f} (lower is better)")
+    print(f"  CPL Std Dev: {metrics['cpl_std_dev']:.2f} (lower indicates more balanced play)")
+    print(f"  Blunders: {metrics['blunders']}")
+    print(f"  Mistakes: {metrics['mistakes']}")
+    # FIX: Changed 'length_bonus' to 'length_score' to match the new key.
+    print(f"  Length Score: {metrics['length_score']}")
+    print(f"  Result Bonus: {metrics['result_bonus']}")
+    print(f"  Consistency Bonus: {metrics['consistency_bonus']:.2f}")
+    print("-" * 40 + "\n")
+
 
 def handle_build(args):
     """Handles the 'build' command: reads PGN, analyzes, and populates the database."""
@@ -182,29 +228,18 @@ def handle_build(args):
         print(f"Error: Stockfish engine not found at '{ENGINE_PATH}'")
         sys.exit(1)
 
-    # --- START OF FIX ---
-    # This new method robustly reads one game at a time while capturing its raw text.
     with open(args.input_pgn, "r", encoding="utf-8") as pgn_file:
         game_num = 1
         while True:
-            # Get the starting position of the game in the file
             start_pos = pgn_file.tell()
-
-            # Use the library to read the game, which advances the file pointer
             game = chess.pgn.read_game(pgn_file)
             if game is None:
-                break  # End of file
+                break
 
-            # Get the ending position
             end_pos = pgn_file.tell()
-
-            # Go back to the start and read the raw text for this game
             pgn_file.seek(start_pos)
             pgn_str = pgn_file.read(end_pos - start_pos)
-
-            # Ensure the file pointer is set for the next read_game() call
             pgn_file.seek(end_pos)
-            # --- END OF FIX ---
 
             if not pgn_str.strip():
                 continue
@@ -213,9 +248,11 @@ def handle_build(args):
             try:
                 analysis = analyze_game(game, engine)
                 if analysis:
-                    game_data = process_game(game, analysis, pgn_str)
+                    # Unpack the two dictionaries returned by the updated function
+                    game_data, metrics_for_print = process_game(game, analysis, pgn_str)
                     if game_data:
                         insert_game(conn, game_data)
+                        print_game_analysis_summary(metrics_for_print)  # Use the metrics dict for printing
             except Exception as e:
                 print(f"  - Could not analyze game {game_num}. Skipping. Error: {e}")
 
