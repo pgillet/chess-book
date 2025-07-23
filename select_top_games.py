@@ -280,6 +280,22 @@ def handle_export(args):
 
     print(f"Exporting top {args.top_n} games from {args.db_file}...")
 
+    # Dynamically build the WHERE clause based on optional score limits
+    where_clauses = []
+    params = []
+    if args.min_score is not None:
+        where_clauses.append('"quality_score" >= ?')
+        params.append(args.min_score)
+        print(f"  - Filtering for games with a quality score >= {args.min_score}")
+    if args.max_score is not None:
+        where_clauses.append('"quality_score" <= ?')
+        params.append(args.max_score)
+        print(f"  - Filtering for games with a quality score <= {args.max_score}")
+
+    where_clause = ""
+    if where_clauses:
+        where_clause = "WHERE " + " AND ".join(where_clauses)
+
     # Build the ORDER BY clause
     order_by_parts = []
     for sort_criterion in args.sort_by:
@@ -291,13 +307,15 @@ def handle_export(args):
 
     order_by_clause = "ORDER BY " + ", ".join(order_by_parts) if order_by_parts else ""
 
-    sql_query = f"SELECT raw_pgn FROM games {order_by_clause} LIMIT {args.top_n};"
+    sql_query = f"SELECT raw_pgn FROM games {where_clause} {order_by_clause} LIMIT {args.top_n};"
+
     print(f"  - Executing SQL: {sql_query}")
 
     conn = create_connection(args.db_file)
     try:
         cur = conn.cursor()
-        cur.execute(sql_query)
+        # Use parameter substitution to safely pass values
+        cur.execute(sql_query, params)
         rows = cur.fetchall()
 
         print(f"  - Found {len(rows)} games. Writing to {args.output_pgn}...")
@@ -335,6 +353,8 @@ if __name__ == "__main__":
         default=["quality_score:desc"],
         help="Sort order for games, e.g., 'quality_score:desc' 'game_datetime:asc' (default: 'quality_score:desc')."
     )
+    parser_export.add_argument("--min_score", type=float, help="Optional: minimum quality score for exported games.")
+    parser_export.add_argument("--max_score", type=float, help="Optional: maximum quality score for exported games.")
 
     args = parser.parse_args()
 
