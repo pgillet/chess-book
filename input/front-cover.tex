@@ -6,6 +6,11 @@
 \usepackage{xcolor}
 \usepackage{tikz}
 \usepackage{chessboard}
+% Use the 'T1' font encoding for better character support
+\usepackage[T1]{fontenc}
+
+% Load the 'helvet' package to set the default sans-serif font to Helvetica
+\usepackage{helvet}
 
 % --- NEW: Define the custom color ---
 % We define the Chess.com green using its RGB values.
@@ -35,14 +40,14 @@
             yshift=-1cm
         ] at (current page.north east) {
 
-            {\Huge \bfseries
-                Krystof126
+            {\fontsize{40pt}{72pt}\selectfont \bfseries
+                \textsf{Krystof126}
             }
 
             \vspace{1.5cm}
 
-            {\LARGE \itshape
-                Ses plus belles parties d'échecs sur Chess.com
+            {\Large
+                \textsf{\textit{Ses plus belles parties d'échecs sur} \textbf{Chess}.com}
             }
         };
 
@@ -53,7 +58,7 @@
             yshift=-9.5cm
         ] at (current page.center) {
              {\large
-                Pascal GILLET
+                \textsf{Pascal GILLET}
              }
         };
 
@@ -63,10 +68,11 @@
             anchor=south east
         ] at (current page.south east) {
 
-            \hspace*{2cm}
-            \vspace*{2cm}
+            \hspace*{1cm}
+            \vspace*{1cm}
 
-            \resizebox{!}{6cm}{\BlackKnightOnWhite}
+            \includegraphics[height=6cm]{pawn.png}
+            %\resizebox{!}{6cm}{\BlackKnightOnWhite}
         };
 
     \end{tikzpicture}
