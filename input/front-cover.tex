@@ -1,0 +1,76 @@
+\documentclass[a5paper]{article} % Change 'a4paper' to 'a5paper' to test other sizes
+
+% --- REQUIRED PACKAGES ---
+\usepackage[pass]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{chessboard}
+
+% --- NEW: Define the custom color ---
+% We define the Chess.com green using its RGB values.
+\definecolor{ChesscomGreen}{RGB}{78, 120, 55}
+
+% --- DOCUMENT BEGINS ---
+\begin{document}
+
+\begin{titlepage}
+    %\thisforkey{empty}
+
+    \begin{tikzpicture}[remember picture, overlay]
+
+        % --- BACKGROUND IMAGE ---
+        \node at (current page.center) {
+            % For best results with colored text, you will want a light background.
+            \includegraphics[width=\paperwidth, height=\paperheight]{cover_image.jpg}
+        };
+
+        % --- FOREGROUND TEXT (Top Right, Green) ---
+        \node[
+            color=ChesscomGreen,                % COLOR SET to our new custom color
+            text width=0.7\textwidth,
+            align=right,
+            anchor=north east,
+            xshift=-1cm,
+            yshift=-1cm
+        ] at (current page.north east) {
+
+            {\Huge \bfseries
+                Krystof126
+            }
+
+            \vspace{1.5cm}
+
+            {\LARGE \itshape
+                Ses plus belles parties d'échecs sur Chess.com
+            }
+        };
+
+        % --- AUTHOR NAME (Green) ---
+        \node[
+            color=ChesscomGreen,                % COLOR SET to our new custom color
+            align=center,
+            yshift=-9.5cm
+        ] at (current page.center) {
+             {\large
+                Pascal GILLET
+             }
+        };
+
+        % --- DECORATIVE KNIGHT (Default Color) ---
+        \node[
+            color=ChesscomGreen,
+            anchor=south east
+        ] at (current page.south east) {
+
+            \hspace*{2cm}
+            \vspace*{2cm}
+
+            \resizebox{!}{6cm}{\BlackKnightOnWhite}
+        };
+
+    \end{tikzpicture}
+
+\end{titlepage}
+
+\end{document}
