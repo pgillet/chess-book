@@ -32,22 +32,35 @@
 
         % --- FOREGROUND TEXT (Top Right, Green) ---
         \node[
-            color=ChesscomGreen,                % COLOR SET to our new custom color
+            draw=ChesscomGreen,                 % COLOR CHANGED: Border color set to the custom green
+            color=ChesscomGreen,
+            line width=4pt,                     % Make the border thicker
+            inner sep=7pt,                     % Add padding inside the border
             text width=0.7\textwidth,
-            align=right,
-            anchor=north east,
-            xshift=-1cm,
-            yshift=-1cm
-        ] at (current page.north east) {
+            align=center,
+            anchor=south east,
+            xshift=-0.5cm,
+            yshift=0.5cm
+        ] at (current page.south east) {
 
-            {\fontsize{40pt}{72pt}\selectfont \bfseries
+            {\fontsize{34pt}{72pt}\selectfont \bfseries
                 \textsf{Krystof126}
             }
 
-            \vspace{1.5cm}
+            \vspace{0.25cm}
 
-            {\Large
-                \textsf{\textit{Ses plus belles parties d'échecs sur} \textbf{Chess}.com}
+            % --- SUBTITLE (with internal padding) ---
+            % We wrap the colorbox in a group {...} to keep the padding change local.
+            {%
+                % Set the padding. Adjust '10pt' to increase or decrease the space.
+                \setlength{\fboxsep}{10pt}%
+                \colorbox{ChesscomGreen}{%
+                    % The parbox now has its width adjusted to account for the new padding.
+                    \parbox{\linewidth-2\fboxsep}{%
+                        \flushright
+                        \color{white}\large\itshape \textsf{\textit{Ses plus belles parties d'échecs sur} \textbf{Chess}.com}
+                    }%
+                }%
             }
         };
 
@@ -65,11 +78,11 @@
         % --- DECORATIVE KNIGHT (Default Color) ---
         \node[
             color=ChesscomGreen,
-            anchor=south east
-        ] at (current page.south east) {
+            anchor=south west
+        ] at (current page.south west) {
 
-            \hspace*{1cm}
-            \vspace*{1cm}
+            %\hspace*{1cm}
+            %\vspace*{1cm}
 
             \includegraphics[height=6cm]{pawn.png}
             %\resizebox{!}{6cm}{\BlackKnightOnWhite}
