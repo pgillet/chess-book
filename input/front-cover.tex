@@ -32,6 +32,7 @@
 
         % --- FOREGROUND TEXT (Top Right, Green) ---
         \node[
+            name=titleblock, % Added a name for this node
             draw=ChesscomGreen,                 % COLOR CHANGED: Border color set to the custom green
             color=ChesscomGreen,
             line width=4pt,                     % Make the border thicker
@@ -39,8 +40,8 @@
             text width=0.7\textwidth,
             align=center,
             anchor=south east,
-            xshift=-0.5cm,
-            yshift=0.5cm
+            xshift=-0.6cm,
+            yshift=0.6cm
         ] at (current page.south east) {
 
             {\fontsize{34pt}{72pt}\selectfont \bfseries
@@ -53,12 +54,12 @@
             % We wrap the colorbox in a group {...} to keep the padding change local.
             {%
                 % Set the padding. Adjust '10pt' to increase or decrease the space.
-                \setlength{\fboxsep}{10pt}%
+                \setlength{\fboxsep}{9pt}%
                 \colorbox{ChesscomGreen}{%
                     % The parbox now has its width adjusted to account for the new padding.
                     \parbox{\linewidth-2\fboxsep}{%
                         \flushright
-                        \color{white}\large\itshape \textsf{\textit{Ses plus belles parties d'échecs sur} \textbf{Chess}.com}
+                        \color{white}\Large \textsf{Ses plus belles parties d'échecs sur \textbf{Chess}.com}
                     }%
                 }%
             }
@@ -66,11 +67,13 @@
 
         % --- AUTHOR NAME (Green) ---
         \node[
-            color=ChesscomGreen,                % COLOR SET to our new custom color
+            color=ChesscomGreen,
             align=center,
-            yshift=-9.5cm
-        ] at (current page.center) {
-             {\large
+            rotate=90,              % Rotates the node content 90 degrees counter-clockwise
+            anchor=south,           % Anchor the node at its new 'south' (bottom) edge
+            xshift=0.1cm,             % Add some space to the left of the title block
+        ] at (titleblock.west) {    % Position the node at the 'west' (left) side of the title block
+             {\Large
                 \textsf{Pascal GILLET}
              }
         };
@@ -84,8 +87,8 @@
             %\hspace*{1cm}
             %\vspace*{1cm}
 
-            \includegraphics[height=6cm]{pawn.png}
-            %\resizebox{!}{6cm}{\BlackKnightOnWhite}
+            \includegraphics[height=5cm]{pawn.png}
+            %\resizebox{!}{5cm}{\BlackKnightOnWhite}
         };
 
     \end{tikzpicture}
