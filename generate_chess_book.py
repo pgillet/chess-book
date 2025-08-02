@@ -153,7 +153,9 @@ MESSAGES = {
         'fn_notation_figurine': 'The game moves are listed in figurine notation, where a symbol represents each piece.',
         'fn_analysis_summary': 'A summary of the computer analysis, including average centipawn loss (CPL) for each player. Lower CPL is better.',
         'fn_board_diagram_all': 'Board diagrams are shown for every move pair. The board on the left shows the position after White\'s move, and the board on the right shows the position after Black\'s response. The start and end squares of each move are highlighted.',
-        'fn_board_diagram_smart': 'Board diagrams are only shown for "smart" move pairs, where at least one move was interesting or inaccurate. The board on the left shows the position after White\'s move, and the board on the right is after Black\'s response. The start and end squares of each move are highlighted.',
+        'fn_board_diagram_smart': 'Board diagrams are only shown for "smart" move pairs, where at least one move was interesting. The board on the left shows the position after White\'s move, and the board on the right is after Black\'s response. The start and end squares of each move are highlighted.',
+        'fn_move_reminder': 'This title shows the move pair in Standard Algebraic Notation.',
+        'fn_analysis_explanation': 'Eval: The engine\'s evaluation of the position in centipawns (1/100th of a pawn). + indicates a white advantage, - a black advantage. | Loss: The centipawn loss for the move played compared to the engine\'s best move. (Good Move, Mistake, Blunder): A classification of the move based on the centipawn loss. Best: The engine\'s preferred move if it differs from the one played.',
         'how_to_read_title': 'How to Read This Book',
         'table_metric': 'Metric',
         'table_white': 'White',
@@ -222,6 +224,8 @@ MESSAGES = {
         'fn_analysis_summary': 'Un résumé de l\'analyse par ordinateur, incluant la perte moyenne de centipions (CPL) pour chaque joueur. Un CPL plus bas est meilleur.',
         'fn_board_diagram_all': 'Les diagrammes d\'échiquier sont affichés pour chaque paire de coups. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
         'fn_board_diagram_smart': 'Les diagrammes d\'échiquier ne sont affichés que pour les paires de coups "intelligentes", où au moins un coup était intéressant. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite est après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence.',
+        'fn_move_reminder': 'Ce titre rappelle la paire de coups en notation algébrique standard.',
+        'fn_analysis_explanation': 'Éval. : L\'évaluation de la position par le moteur en centipions (1/100ème de pion). + indique un avantage pour les Blancs, - pour les Noirs. | Perte : La perte en centipions pour le coup joué par rapport au meilleur coup du moteur. (Bon Coup, Erreur, Gaffe) : Une classification du coup basée sur la perte en centipions. Meilleur : Le coup préféré du moteur s\'il diffère de celui joué.',
         'how_to_read_title': 'Comment Lire ce Livre',
         'table_metric': 'Métrique',
         'table_white': 'Blancs',
@@ -539,9 +543,9 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays, attaching comments to the
-    specific move analysis they belong to.
+    Generates the LaTeX for move-by-move board displays, with correctly placed and differentiated footnotes.
     """
+    fn = lambda key: f"\\protect\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
         return latex_lines
@@ -591,9 +595,9 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         else:
             fen2, marked_sq2 = fen1, ""
 
-        # Append all data, including the nodes for comment processing
-        all_calculated_move_pairs.append((current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2,
-                                          marked_sq2, black_analysis_data, has_cpl_in_pair, white_node, black_node))
+        all_calculated_move_pairs.append(
+            (current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2, marked_sq2, black_analysis_data,
+             has_cpl_in_pair, white_node, black_node))
 
     move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
                                                                                     all_calculated_move_pairs if
@@ -605,7 +609,15 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _, white_node,
             black_node) in enumerate(move_pairs_to_display):
 
-        latex_lines.append(f"\\subsubsection*{{{move_text}}}")
+        move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
+        latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
+
+        board_footnote = ""
+        if i == 0 and annotated:
+            # Select the correct board explanation message based on the scope.
+            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
+            board_footnote = fn(key) if i == 0 and annotated else ""
+
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
         latex_lines.append(
@@ -615,24 +627,20 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                 f"\\chessboard[setfen={{ {fen2} }}, boardfontsize={board_size}, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
         else:
             latex_lines.append("\\\\")
+        latex_lines.append(board_footnote)
         latex_lines.append("\\end{tabularx}")
 
         if white_analysis or black_analysis:
-            # The footnote logic is now entirely inside this helper function
-            def format_analysis(analysis, node, is_first_block):
+            analysis_footnote = fn('fn_analysis_explanation') if i == 0 and annotated else ""
+
+            def format_analysis(analysis, node):
                 if not analysis:
                     return "", ""
 
-                footnote = ""
-                # Technical footnote for the "How to Read" section
-                if is_first_block and annotated:
-                    key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
-                    footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
-
-                # Player comment footnote
+                comment_footnote = ""
                 comment = node.comment if node and node.comment and not node.comment.strip().startswith('[%') else None
                 if comment:
-                    footnote += f"\\footnote{{{escape_latex_special_chars(comment)}}}"
+                    comment_footnote = f"\\footnote{{{escape_latex_special_chars(comment)}}}"
 
                 eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
 
@@ -642,21 +650,18 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                     classification = classify_move_loss(analysis['cpl_for_move'], lang)
                     best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
                     separator = "\\text{\\textbar}"
-                    line1 = f"{footnote}{eval_str} {separator} {loss_str}"
+                    line1 = f"{eval_str} {separator} {loss_str}"
                     line2 = f"{classification} ({best_move_str})"
                     return line1, line2
                 else:
-                    # If the played move WAS the best
-                    line1 = f"{footnote}{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
-                    # Return a \strut to create an empty line with standard height.
+                    line1 = f"{eval_str}{comment_footnote} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
                     return line1, "\\strut"
 
-            white_line1, white_line2 = format_analysis(white_analysis, white_node, True)
-            black_line1, black_line2 = format_analysis(black_analysis, black_node, False)
+            white_line1, white_line2 = format_analysis(white_analysis, white_node)
+            black_line1, black_line2 = format_analysis(black_analysis, black_node)
 
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-            latex_lines.append(f"{white_line1} & {black_line1} \\\\")
-
+            latex_lines.append(f"{analysis_footnote}{white_line1} & {black_line1} \\\\")
             latex_lines.append(f"{white_line2} & {black_line2} \\\\")
             latex_lines.append("\\end{tabularx}")
 
