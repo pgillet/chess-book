@@ -10,19 +10,14 @@ import chess.engine
 import chess.pgn
 
 LATEX_COMPILE_PASSES = 1
-
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
-MAX_BOARDS_PER_PAGE = 6
 TWO_COLUMN_THRESHOLD = 25  # Number of full moves to trigger two-column layout
 
 # Defines all paper, font, margin, and board size settings.
 PAPER_SIZE_SETTINGS = {
-    'a5': {'paper': 'a5paper', 'font': '10pt', 'inner': '14mm', 'outer': '10mm', 'top': '16mm', 'bottom': '16mm',
-           'board_size': '18pt'},
-    'a4': {'paper': 'a4paper', 'font': '11pt', 'inner': '25mm', 'outer': '20mm', 'top': '20mm', 'bottom': '20mm',
-           'board_size': '20pt'},
-    'a3': {'paper': 'a3paper', 'font': '12pt', 'inner': '30mm', 'outer': '25mm', 'top': '20mm', 'bottom': '20mm',
-           'board_size': '24pt'},
+    'a5': {'paper': 'a5paper', 'font': '10pt', 'inner': '18mm', 'outer': '12mm', 'top': '20mm', 'bottom': '20mm', 'board_size': '16pt'},
+    'a4': {'paper': 'a4paper', 'font': '11pt', 'inner': '25mm', 'outer': '20mm', 'top': '20mm', 'bottom': '20mm', 'board_size': '20pt'},
+    'a3': {'paper': 'a3paper', 'font': '12pt', 'inner': '30mm', 'outer': '25mm', 'top': '20mm', 'bottom': '20mm', 'board_size': '24pt'},
 }
 
 INLINE_CHESS_SYMBOL = {
@@ -48,59 +43,58 @@ def get_latex_header_part1(settings):
     geometry_options = f"inner={settings['inner']},outer={settings['outer']},top={settings['top']},bottom={settings['bottom']}"
 
     return dedent(fr'''
-        \documentclass[{documentclass_options}]{{book}}
-        \usepackage[{geometry_options}]{{geometry}}
-        \usepackage{{chessboard}}
-        \usepackage{{multicol}}
-        \usepackage{{fancyhdr}}
-        \usepackage{{titlesec}}
-        \usepackage{{parskip}}
-        \usepackage{{tabularx}}
-        \usepackage{{longtable}}
-        \usepackage{{skak}}
-        \usepackage{{scalerel}}
-        \usepackage{{array}} % Required for >{{\centering\arraybackslash}}
-        \usepackage{{amsmath}}
-        \usepackage{{amssymb}} % For \Box, \blacksquare, and \star symbols
-        \usepackage{{enumitem}}
-        \usepackage{{calc}}
-        %\usepackage{{fontspec}} % Required for Unicode fonts like those used by utfsym
-        % \usepackage{{utfsym}} % For \usym command to display Unicode symbols
-        % Redefine tabularxcolumn for vertical and horizontal centering within X columns
-        \renewcommand{{\tabularxcolumn}}[1]{{>{{\centering\arraybackslash}}m{{#1}}}}
+            \documentclass[{documentclass_options}]{{book}}
+            \usepackage[{geometry_options}]{{geometry}}
+            \usepackage{{graphicx}}
+            \usepackage{{chessboard}}
+            \usepackage{{multicol}}
+            \usepackage{{fancyhdr}}
+            \usepackage{{titlesec}}
+            \usepackage{{parskip}}
+            \usepackage{{tabularx}}
+            \usepackage{{longtable}}
+            \usepackage{{skak}}
+            \usepackage{{scalerel}}
+            \usepackage{{array}} % Required for >{{\centering\arraybackslash}}
+            \usepackage{{amssymb}} % For \Box, \blacksquare, and \star symbols
+            \usepackage{{enumitem}}
+            \usepackage{{calc}}
+            \usepackage{{xcolor}}
+            \usepackage{{tikz}}
+            \usepackage[T1]{{fontenc}}
+            \usepackage{{helvet}}
 
-        % Remove numbering from sections AND from TOC entries for sections
-        \titleformat{{\section}}{{\normalfont\Large\bfseries}}{{}}{{0pt}}{{}}
-        \titlespacing*{{\section}}{{0pt}}{{1.5ex}}{{1ex}}
-        \titlespacing*{{\subsection}}{{0pt}}{{1.5ex}}{{1ex}}
-        \titlespacing*{{\subsubsection}}{{0pt}}{{1.5ex}}{{1ex}}
-        \setcounter{{secnumdepth}}{{-1}} % This hides section numbers in the TOC as well
-        \setcounter{{tocdepth}}{{1}} % Ensure sections are included in TOC, but not lower levels by default
-        \setlength{{\parindent}}{{0pt}}
-
-        % Redefine \sectionmark to show only the section title without numbering
-        \renewcommand{{\sectionmark}}[1]{{\markright{{#1}}}}
-
-        \pagestyle{{fancy}}
-        \fancyhf{{}} % Clear all headers and footers first
-        \renewcommand{{\headrulewidth}}{{0pt}} % Remove the horizontal header line
-
-        % Define the header for odd pages (right-hand pages)
-        \fancyhead[RO]{{\nouppercase{{\rightmark}}}} % Right Odd: Show the current section title
-
-        % Define the footer for even pages (left-hand pages)
-        \fancyfoot[LE,RO]{{\thepage}} % Left Even, Right Odd
-        % Define the footer for odd pages (right-hand pages)
-        \fancyfoot[LO,CE]{{}} % Left Odd, Center Even
-
-        % Redefine the plain page style (used for chapter pages)
-        \fancypagestyle{{plain}}{{
-            \fancyhf{{}} % Clear all header and footer fields
-            \fancyfoot[LE,RO]{{\thepage}} % Page numbers on the bottom left for even pages and bottom right for odd pages
-            \renewcommand{{\headrulewidth}}{{0pt}}
-        }}
-        \begin{{document}}
-    ''')
+            \definecolor{{ChesscomGreen}}{{RGB}}{{78, 120, 55}}
+            
+            % Redefine tabularxcolumn for vertical and horizontal centering within X columns
+            \renewcommand{{\tabularxcolumn}}[1]{{>{{\centering\arraybackslash}}m{{#1}}}}
+            % Remove numbering from sections AND from TOC entries for sections
+            \titleformat{{\section}}{{\normalfont\Large\bfseries}}{{}}{{0pt}}{{}}
+            \titlespacing*{{\section}}{{0pt}}{{1.5ex}}{{1ex}}
+            \titlespacing*{{\subsection}}{{0pt}}{{1.5ex}}{{1ex}}
+            \titlespacing*{{\subsubsection}}{{0pt}}{{1.5ex}}{{1ex}}
+            \setcounter{{secnumdepth}}{{-1}}
+            \setcounter{{tocdepth}}{{1}}
+            \setlength{{\parindent}}{{0pt}}
+            % Redefine \sectionmark to show only the section title without numbering
+            \renewcommand{{\sectionmark}}[1]{{\markright{{#1}}}}
+            \pagestyle{{fancy}}
+            \fancyhf{{}} % Clear all headers and footers first
+            \renewcommand{{\headrulewidth}}{{0pt}} % Remove the horizontal header line
+            % Define the header for odd pages (right-hand pages)
+            \fancyhead[RO]{{\nouppercase{{\rightmark}}}} % Right Odd: Show the current section title
+            % Define the footer for even pages (left-hand pages)
+            \fancyfoot[LE,RO]{{\thepage}} % Left Even, Right Odd
+            % Define the footer for odd pages (right-hand pages)
+            \fancyfoot[LO,CE]{{}}
+            % Redefine the plain page style (used for chapter pages)
+            \fancypagestyle{{plain}}{{
+                \fancyhf{{}} % Clear all header and footer fields
+                \fancyfoot[LE,RO]{{\thepage}} % Page numbers on the bottom left for even pages and bottom right for odd pages
+                \renewcommand{{\headrulewidth}}{{0pt}}
+            }}
+            \begin{{document}}
+        ''')
 
 
 LATEX_HEADER_PART2_TOC = dedent(r'''
@@ -916,6 +910,76 @@ def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
             print(MESSAGES[lang]['front_matter_page_file_not_found'].format(path=content_path), file=sys.stderr)
 
 
+def _find_book_part_file(directory, basename):
+    """Finds a file with a given basename, checking for .tex and .txt extensions."""
+    if not directory:
+        return None, None
+    base_path = Path(directory) / basename
+    if (tex_file := base_path.with_suffix('.tex')).exists():
+        return tex_file, 'latex'
+    if (txt_file := base_path.with_suffix('.txt')).exists():
+        return txt_file, 'text'
+    return None, None
+
+
+def _format_dedication_epigraph_txt(content):
+    """Formats raw text for a dedication or epigraph page (right-aligned)."""
+    content_processed = escape_latex_special_chars(content)
+    content_processed = content_processed.replace('\n\n', r"\par\vspace{\baselineskip}\par")
+    content_processed = content_processed.replace('\n', r"\\* ")
+    return (
+            r"\newpage" + "\n" +
+            r"\thispagestyle{empty}" + "\n" +
+            r"\vspace*{.3\textheight}" + "\n" +
+            r"\begin{flushright}" + "\n" +
+            r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
+            content_processed + "\n" +
+            r"}" + "\n" +
+            r"\end{flushright}" + "\n"
+    )
+
+
+def _format_preface_txt(content):
+    """Formats raw text for a preface page (justified with a title)."""
+    title = "Preface"  # You can expand this to be dynamic if needed
+
+    # Process text to respect paragraph breaks
+    paragraphs = content.strip().split('\n\n')
+    content_processed = r"\par ".join([escape_latex_special_chars(p) for p in paragraphs])
+
+    return (
+            r"\cleardoublepage" + "\n" +
+            f"\\chapter*{{{title}}}" + "\n" +
+            f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}" + "\n" +
+            r"\thispagestyle{fancy}" + "\n" +  # Use the standard page style
+            content_processed + "\n"
+    )
+
+
+def _process_book_part(directory, basename):
+    """
+    Finds a book part file and returns its processed LaTeX content.
+    """
+    file_path, file_type = _find_book_part_file(directory, basename)
+    if not file_path:
+        return ""
+
+    content = file_path.read_text(encoding='utf-8')
+
+    if file_type == 'latex':
+        return content  # Use LaTeX file as is
+
+    if file_type == 'text':
+        if basename in ["dedication", "epigraph"]:
+            return _format_dedication_epigraph_txt(content)
+        if basename == "preface":
+            return _format_preface_txt(content)
+        # Placeholder for back-cover text formatting if needed in the future
+        # if basename == "back-cover":
+        #     return _format_back_cover_txt(content)
+
+    return ""  # Ignore unknown files
+
 def generate_chess_book(args):
     """
     Orchestrates the creation of the chess book from command-line arguments.
@@ -923,22 +987,40 @@ def generate_chess_book(args):
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(args.pgn_file) as f:
-        games = [game for game in iter(lambda: chess.pgn.read_game(f), None)]
+        games = list(iter(lambda: chess.pgn.read_game(f), None))
 
     settings = PAPER_SIZE_SETTINGS[args.paper_size]
 
-    # This list will hold all our LaTeX code
+    # --- Process Book Design Directory ---
+    design_dir = args.book_design_dir
+    front_cover_content = _process_book_part(design_dir, "front-cover")
+    dedication_content = _process_book_part(design_dir, "dedication")
+    epigraph_content = _process_book_part(design_dir, "epigraph")
+    preface_content = _process_book_part(design_dir, "preface")
+    back_cover_content = _process_book_part(design_dir, "back-cover")
+
+    # --- Assemble the Book in Order ---
     tex_master = []
-
-    # Add the command to redefine the TOC title before the main header
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
-
-    # Now, add the rest of the header
     tex_master.append(get_latex_header_part1(settings))
 
-    _add_front_matter_page_to_latex(tex_master, args.dedication_file, args.language)
-    _add_front_matter_page_to_latex(tex_master, args.epigraph_file, args.language)
+    # 1. Front Cover
+    if front_cover_content:
+        tex_master.append(front_cover_content)
+
+    # 2. Dedication & Epigraph
+    if dedication_content:
+        tex_master.append(dedication_content)
+    if epigraph_content:
+        tex_master.append(epigraph_content)
+
+    # 3. Table of Contents
     tex_master.append(LATEX_HEADER_PART2_TOC)
+
+    # 4. Preface
+    if preface_content:
+        tex_master.append(preface_content)
+
     engine = None
     try:
         engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
@@ -963,6 +1045,11 @@ def generate_chess_book(args):
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
             print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
+
+    # 5. Back Cover at the very end
+    if back_cover_content:
+        tex_master.append(back_cover_content)
+
     tex_master.append(LATEX_FOOTER)
     with open(output_dir / "chess_book.tex", "w", encoding='utf-8') as f:
         f.write("\n".join(tex_master))
@@ -972,24 +1059,18 @@ def generate_chess_book(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a chess book from PGN files.")
-    parser.add_argument("pgn_file", type=str, help="Path to the PGN file containing chess games.")
-    parser.add_argument("output_dir", type=str,
-                        help="Directory where the LaTeX files and the final PDF will be generated.")
+    parser.add_argument("pgn_file", type=str, help="Path to the PGN file.")
+    parser.add_argument("output_dir", type=str, help="Directory where the LaTeX files and the final PDF will be generated.")
+    parser.add_argument("--book_design_dir", type=str,
+                        help="Directory containing LaTeX/text files for book parts (front-cover, dedication, etc.).")
     parser.add_argument("--notation_type", type=str, choices=["algebraic", "figurine"], default="figurine",
                         help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine').")
-    parser.add_argument("--display_boards", action="store_true",
-                        help="Enable display of chessboards. If off (default), only notation is displayed.")
+    parser.add_argument("--display_boards", action="store_true", help="Enable display of chessboards. If off (default), only notation is displayed.")
     parser.add_argument("--board_scope", type=str, choices=["all", "smart"], default="smart",
-                        help="When --display_boards is enabled, specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart').")
-    parser.add_argument("--language", type=str, choices=["en", "fr"], default="en",
-                        help="Language for the generated text (default: 'en').")
-    parser.add_argument("--paper_size", type=str, choices=['a3', 'a4', 'a5'], default='a4',
-                        help="Paper size for the output PDF (default: 'a4').")
-    parser.add_argument("--epigraph_file", type=str, help="Path to a raw text file for the epigraph page (optional).")
-    parser.add_argument("--dedication_file", type=str,
-                        help="Path to a raw text file for the dedication page (optional).")
-    parser.add_argument("--how_to_read", action="store_true",
-                        help="Adds a 'How to Read This Book' section using footnotes.")
+                        help="Specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart').")
+    parser.add_argument("--language", type=str, choices=["en", "fr"], default="en", help="Language for text.")
+    parser.add_argument("--paper_size", type=str, choices=['a3', 'a4', 'a5'], default='a4', help="Paper size for the output PDF (default: 'a4').")
+    parser.add_argument("--how_to_read", action="store_true", help="Add 'How to Read This Book' section.")
     args = parser.parse_args()
     delete_output_directory(args.output_dir, args.language)
     generate_chess_book(args)
