@@ -543,7 +543,7 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays, with correctly placed and differentiated footnotes.
+    Generates the LaTeX for move-by-move board displays, with correctly placed page footnotes.
     """
     fn = lambda key: f"\\protect\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
@@ -612,13 +612,25 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
         latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
 
-        board_footnote = ""
-        if i == 0 and annotated:
-            # Select the correct board explanation message based on the scope.
-            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
-            board_footnote = fn(key) if i == 0 and annotated else ""
+        # Prepare the footnote marks and text separately.
+        board_footnote_mark = ""
+        board_footnote_text = ""
+        analysis_footnote_mark = ""
+        analysis_footnote_text = ""
 
+        if i == 0 and annotated:
+            # For the board diagram
+            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
+            board_footnote_mark = "\\footnotemark "
+            board_footnote_text = f"\\footnotetext{{{MESSAGES[lang][key]}}}"
+
+            # For the analysis explanation
+            analysis_footnote_mark = "\\footnotemark "
+            analysis_footnote_text = f"\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}"
+
+        # The minipage now only contains the layout, not the footnote definitions.
         latex_lines.append(r"\begin{minipage}{\linewidth}")
+        latex_lines.append(board_footnote_mark)
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
         latex_lines.append(
             f"\\chessboard[setfen={{ {fen1} }}, boardfontsize={board_size}, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
@@ -627,12 +639,9 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                 f"\\chessboard[setfen={{ {fen2} }}, boardfontsize={board_size}, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
         else:
             latex_lines.append("\\\\")
-        latex_lines.append(board_footnote)
         latex_lines.append("\\end{tabularx}")
 
         if white_analysis or black_analysis:
-            analysis_footnote = fn('fn_analysis_explanation') if i == 0 and annotated else ""
-
             def format_analysis(analysis, node):
                 if not analysis:
                     return "", ""
@@ -650,7 +659,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                     classification = classify_move_loss(analysis['cpl_for_move'], lang)
                     best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
                     separator = "\\text{\\textbar}"
-                    line1 = f"{eval_str} {separator} {loss_str}"
+                    line1 = f"{eval_str}{comment_footnote} {separator} {loss_str}"
                     line2 = f"{classification} ({best_move_str})"
                     return line1, line2
                 else:
@@ -661,11 +670,16 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             black_line1, black_line2 = format_analysis(black_analysis, black_node)
 
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-            latex_lines.append(f"{analysis_footnote}{white_line1} & {black_line1} \\\\")
+            # Add the mark for the analysis footnote here.
+            latex_lines.append(f"{analysis_footnote_mark}{white_line1} & {black_line1} \\\\")
             latex_lines.append(f"{white_line2} & {black_line2} \\\\")
             latex_lines.append("\\end{tabularx}")
 
         latex_lines.append(r"\end{minipage}")
+        # Add the deferred footnote texts AFTER the minipage.
+        latex_lines.append(board_footnote_text)
+        latex_lines.append(analysis_footnote_text)
+
     return latex_lines
 
 
