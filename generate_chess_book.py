@@ -543,7 +543,8 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays, with correctly placed page footnotes.
+    Generates the LaTeX for move-by-move board displays, now with check/checkmate highlighting
+    using the chessboard package's native marking features.
     """
     fn = lambda key: f"\\protect\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
@@ -558,6 +559,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     for i in range(0, len(moves_list), 2):
         current_move_pair_text = f"{(i // 2) + 1}."
         fen1, marked_sq1, fen2, marked_sq2 = "", "", "", ""
+        king_mark_opts1, king_mark_opts2 = "", ""  # New variables for check marks
 
         white_move_obj = moves_list[i] if i < len(moves_list) else None
         white_node = nodes[i] if white_move_obj else None
@@ -574,40 +576,56 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         if white_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
             if board_for_display.is_castling(white_move_obj):
-                king_from_sq = white_move_obj.from_square
-                rook_from_sq = chess.H1 if board_for_display.is_kingside_castling(white_move_obj) else chess.A1
-                marked_sq1 = f"{{ {chess.square_name(king_from_sq)}, {chess.square_name(rook_from_sq)} }}"
+                king_from_sq, rook_from_sq = white_move_obj.from_square, chess.H1 if board_for_display.is_kingside_castling(
+                    white_move_obj) else chess.A1
+                marked_sq1 = f"markfields={{{chess.square_name(king_from_sq)},{chess.square_name(rook_from_sq)}}}"
             else:
-                marked_sq1 = f"{{ {chess.square_name(white_move_obj.from_square)}, {chess.square_name(white_move_obj.to_square)} }}"
+                marked_sq1 = f"markfields={{{chess.square_name(white_move_obj.from_square)},{chess.square_name(white_move_obj.to_square)}}}"
             board_for_display.push(white_move_obj)
             fen1 = board_for_display.board_fen()
+
+            # Check for check/checkmate against Black's king
+            if board_for_display.is_checkmate():
+                king_square = chess.square_name(board_for_display.king(chess.BLACK))
+                king_mark_opts1 = f",markstyle=circle,markfield={{{king_square}}},markstyle=cross,markfield={{{king_square}}}"
+            elif board_for_display.is_check():
+                king_square = chess.square_name(board_for_display.king(chess.BLACK))
+                king_mark_opts1 = f",markstyle=circle,markfield={{{king_square}}}"
 
         if black_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
             if board_for_display.is_castling(black_move_obj):
-                king_from_sq = black_move_obj.from_square
-                rook_from_sq = chess.H8 if board_for_display.is_kingside_castling(black_move_obj) else chess.A8
-                marked_sq2 = f"{{ {chess.square_name(king_from_sq)}, {chess.square_name(rook_from_sq)} }}"
+                king_from_sq, rook_from_sq = black_move_obj.from_square, chess.H8 if board_for_display.is_kingside_castling(
+                    black_move_obj) else chess.A8
+                marked_sq2 = f"markfields={{{chess.square_name(king_from_sq)},{chess.square_name(rook_from_sq)}}}"
             else:
-                marked_sq2 = f"{{ {chess.square_name(black_move_obj.from_square)}, {chess.square_name(black_move_obj.to_square)} }}"
+                marked_sq2 = f"markfields={{{chess.square_name(black_move_obj.from_square)},{chess.square_name(black_move_obj.to_square)}}}"
             board_for_display.push(black_move_obj)
             fen2 = board_for_display.board_fen()
+
+            # Check for check/checkmate against White's king
+            if board_for_display.is_checkmate():
+                king_square = chess.square_name(board_for_display.king(chess.WHITE))
+                king_mark_opts2 = f",markstyle=circle,markfield={{{king_square}}},markstyle=cross,markfield={{{king_square}}}"
+            elif board_for_display.is_check():
+                king_square = chess.square_name(board_for_display.king(chess.WHITE))
+                king_mark_opts2 = f",markstyle=circle,markfield={{{king_square}}}"
         else:
             fen2, marked_sq2 = fen1, ""
 
         all_calculated_move_pairs.append(
-            (current_move_pair_text, fen1, marked_sq1, white_analysis_data, fen2, marked_sq2, black_analysis_data,
-             has_cpl_in_pair, white_node, black_node))
+            (current_move_pair_text, fen1, marked_sq1, king_mark_opts1, white_analysis_data, fen2, marked_sq2,
+             king_mark_opts2, black_analysis_data, has_cpl_in_pair, white_node, black_node))
 
     move_pairs_to_display = all_calculated_move_pairs if board_scope == "all" else [pair for pair in
                                                                                     all_calculated_move_pairs if
-                                                                                    pair[7]]
+                                                                                    pair[9]]
     if annotated:
         move_pairs_to_display = all_calculated_move_pairs[5:6]
 
     board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
-    for i, (move_text, fen1, marked_sq1, white_analysis, fen2, marked_sq2, black_analysis, _, white_node,
-            black_node) in enumerate(move_pairs_to_display):
+    for i, (move_text, fen1, marked_sq1, king_mark_opts1, white_analysis, fen2, marked_sq2, king_mark_opts2,
+            black_analysis, _, white_node, black_node) in enumerate(move_pairs_to_display):
 
         move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
         latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
@@ -628,24 +646,22 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
             analysis_footnote_mark = "\\footnotemark "
             analysis_footnote_text = f"\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}"
 
-        # The minipage now only contains the layout, not the footnote definitions.
+        # Build the command strings for the chessboards
+        board1_cmd = f"\\chessboard[setfen={{ {fen1} }}, boardfontsize={board_size}, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, {marked_sq1}{king_mark_opts1}]"
+
+        board2_cmd = ""
+        if marked_sq2:
+            board2_cmd = f"\\chessboard[setfen={{ {fen2} }}, boardfontsize={board_size}, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, {marked_sq2}{king_mark_opts2}]"
+
         latex_lines.append(r"\begin{minipage}{\linewidth}")
         latex_lines.append(board_footnote_mark)
         latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-        latex_lines.append(
-            f"\\chessboard[setfen={{ {fen1} }}, boardfontsize={board_size}, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq1}] &")
-        if marked_sq2:
-            latex_lines.append(
-                f"\\chessboard[setfen={{ {fen2} }}, boardfontsize={board_size}, mover=w, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, markfields={marked_sq2}] \\\\")
-        else:
-            latex_lines.append("\\\\")
+        latex_lines.append(f"{board1_cmd} & {board2_cmd} \\\\")
         latex_lines.append("\\end{tabularx}")
 
         if white_analysis or black_analysis:
             def format_analysis(analysis, node):
-                if not analysis:
-                    return "", ""
-
+                if not analysis: return "", ""
                 comment_footnote = ""
                 comment = node.comment if node and node.comment and not node.comment.strip().startswith('[%') else None
                 if comment:
