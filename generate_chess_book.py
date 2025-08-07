@@ -543,8 +543,7 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for move-by-move board displays, now with check/checkmate highlighting
-    using the chessboard package's native marking features.
+    Generates the LaTeX for move-by-move board displays, with correctly placed footnotes and check/checkmate markers.
     """
     fn = lambda key: f"\\protect\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
     latex_lines = []
@@ -559,7 +558,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     for i in range(0, len(moves_list), 2):
         current_move_pair_text = f"{(i // 2) + 1}."
         fen1, marked_sq1, fen2, marked_sq2 = "", "", "", ""
-        king_mark_opts1, king_mark_opts2 = "", ""  # New variables for check marks
+        king_mark_opts1, king_mark_opts2 = "", ""  # variables for check marks
 
         white_move_obj = moves_list[i] if i < len(moves_list) else None
         white_node = nodes[i] if white_move_obj else None
@@ -625,28 +624,21 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
     board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
     for i, (move_text, fen1, marked_sq1, king_mark_opts1, white_analysis, fen2, marked_sq2, king_mark_opts2,
-            black_analysis, _, white_node, black_node) in enumerate(move_pairs_to_display):
+            black_analysis, _, white_node,
+            black_node) in enumerate(move_pairs_to_display):
 
         move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
         latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
 
-        # Prepare the footnote marks and text separately.
-        board_footnote_mark = ""
-        board_footnote_text = ""
-        analysis_footnote_mark = ""
-        analysis_footnote_text = ""
-
+        board_footnote_mark, board_footnote_text, analysis_footnote_mark, analysis_footnote_text = "", "", "", ""
         if i == 0 and annotated:
-            # For the board diagram
-            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
             board_footnote_mark = "\\footnotemark "
-            board_footnote_text = f"\\footnotetext{{{MESSAGES[lang][key]}}}"
-
-            # For the analysis explanation
             analysis_footnote_mark = "\\footnotemark "
-            analysis_footnote_text = f"\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}"
+            key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
+            board_footnote_text = f"\\addtocounter{{footnote}}{{-2}}\\stepcounter{{footnote}}\\footnotetext{{{MESSAGES[lang][key]}}}"
+            analysis_footnote_text = f"\\stepcounter{{footnote}}\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}"
 
-        # Build the command strings for the chessboards
+        # Build the command strings for the chessboards, now including check marks
         board1_cmd = f"\\chessboard[setfen={{ {fen1} }}, boardfontsize={board_size}, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, {marked_sq1}{king_mark_opts1}]"
 
         board2_cmd = ""
@@ -664,11 +656,8 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                 if not analysis: return "", ""
                 comment_footnote = ""
                 comment = node.comment if node and node.comment and not node.comment.strip().startswith('[%') else None
-                if comment:
-                    comment_footnote = f"\\footnote{{{escape_latex_special_chars(comment)}}}"
-
+                if comment: comment_footnote = f"\\footnote{{{escape_latex_special_chars(comment)}}}"
                 eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
-
                 if analysis['played_move'] != analysis['engine_best_move_from_pos'] and not analysis[
                     'engine_eval_before_played_move'].is_mate():
                     loss_str = f"\\textit{{{MESSAGES[lang]['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}"
@@ -684,15 +673,12 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
             white_line1, white_line2 = format_analysis(white_analysis, white_node)
             black_line1, black_line2 = format_analysis(black_analysis, black_node)
-
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
-            # Add the mark for the analysis footnote here.
             latex_lines.append(f"{analysis_footnote_mark}{white_line1} & {black_line1} \\\\")
             latex_lines.append(f"{white_line2} & {black_line2} \\\\")
             latex_lines.append("\\end{tabularx}")
 
         latex_lines.append(r"\end{minipage}")
-        # Add the deferred footnote texts AFTER the minipage.
         latex_lines.append(board_footnote_text)
         latex_lines.append(analysis_footnote_text)
 
