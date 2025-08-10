@@ -284,13 +284,21 @@ def escape_latex_special_chars(text):
 
 
 def get_eval_string(score, lang='en'):
-    """Formats a Stockfish score object into a human-readable string."""
+    """Formats a Stockfish score object into a human-readable string, now with correct mate signs."""
     if score is None:
         return "N/A"
+
     white_pov_score = score.white()
+
     if white_pov_score.is_mate():
         mate_value = white_pov_score.mate()
-        return f"M{abs(mate_value)}" if mate_value != 0 else "0"
+        if mate_value == 0:
+            return "0"
+        # Prepend a '+' sign if the mate value is positive
+        sign = "+" if mate_value > 0 else ""
+        return f"{sign}M{mate_value}"
+
+    # The centipawn formatting already correctly handles the sign
     return f"{white_pov_score.cp / 100.0:+.2f}{MESSAGES[lang]['cp_text']}"
 
 
