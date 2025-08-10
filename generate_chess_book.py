@@ -295,8 +295,8 @@ def get_eval_string(score, lang='en'):
         if mate_value == 0:
             return "0"
         # Prepend a '+' sign if the mate value is positive
-        sign = "+" if mate_value > 0 else ""
-        return f"{sign}M{mate_value}"
+        sign = "+" if mate_value > 0 else "-"
+        return f"{sign}M{abs(mate_value)}"
 
     # The centipawn formatting already correctly handles the sign
     return f"{white_pov_score.cp / 100.0:+.2f}{MESSAGES[lang]['cp_text']}"
