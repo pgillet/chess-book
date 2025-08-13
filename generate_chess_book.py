@@ -979,6 +979,8 @@ def _format_preface_txt(content):
     return (
             r"\cleardoublepage" + "\n" +
             f"\\chapter*{{{title}}}" + "\n" +
+            # This command clears the header text for the preface pages.
+            f"\\markboth{{{''}}}{{{''}}}" + "\n" +
             f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}" + "\n" +
             r"\thispagestyle{fancy}" + "\n" +  # Use the standard page style
             content_processed + "\n"
