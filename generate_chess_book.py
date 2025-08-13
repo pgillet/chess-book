@@ -9,7 +9,7 @@ import subprocess  # For running pdflatex
 import chess.engine
 import chess.pgn
 
-LATEX_COMPILE_PASSES = 1
+LATEX_COMPILE_PASSES = 2
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"  # Update if necessary
 TWO_COLUMN_THRESHOLD = 25  # Number of full moves to trigger two-column layout
 
@@ -43,58 +43,59 @@ def get_latex_header_part1(settings):
     geometry_options = f"inner={settings['inner']},outer={settings['outer']},top={settings['top']},bottom={settings['bottom']}"
 
     return dedent(fr'''
-            \documentclass[{documentclass_options}]{{book}}
-            \usepackage[{geometry_options}]{{geometry}}
-            \usepackage{{graphicx}}
-            \usepackage{{chessboard}}
-            \usepackage{{multicol}}
-            \usepackage{{fancyhdr}}
-            \usepackage{{titlesec}}
-            \usepackage{{parskip}}
-            \usepackage{{tabularx}}
-            \usepackage{{longtable}}
-            \usepackage{{skak}}
-            \usepackage{{scalerel}}
-            \usepackage{{array}} % Required for >{{\centering\arraybackslash}}
-            \usepackage{{amssymb}} % For \Box, \blacksquare, and \star symbols
-            \usepackage{{enumitem}}
-            \usepackage{{calc}}
-            \usepackage{{xcolor}}
-            \usepackage{{tikz}}
-            \usepackage[T1]{{fontenc}}
-            \usepackage{{helvet}}
+        \documentclass[{documentclass_options}]{{book}}
+        \usepackage[{geometry_options}]{{geometry}}
+        \usepackage{{graphicx}}
+        \usepackage{{chessboard}}
+        \usepackage{{multicol}}
+        \usepackage{{fancyhdr}}
+        \usepackage{{titlesec}}
+        \usepackage{{parskip}}
+        \usepackage{{tabularx}}
+        \usepackage{{longtable}}
+        \usepackage{{skak}}
+        \usepackage{{scalerel}}
+        \usepackage{{array}} % Required for >{{\centering\arraybackslash}}
+        \usepackage{{amssymb}} % For \Box, \blacksquare, and \star symbols
+        \usepackage{{enumitem}}
+        \usepackage{{calc}}
+        \usepackage{{xcolor}}
+        \usepackage{{tikz}}
+        \usepackage[T1]{{fontenc}}
+        \usepackage{{helvet}}
 
-            \definecolor{{ChesscomGreen}}{{RGB}}{{78, 120, 55}}
-            
-            % Redefine tabularxcolumn for vertical and horizontal centering within X columns
-            \renewcommand{{\tabularxcolumn}}[1]{{>{{\centering\arraybackslash}}m{{#1}}}}
-            % Remove numbering from sections AND from TOC entries for sections
-            \titleformat{{\section}}{{\normalfont\Large\bfseries}}{{}}{{0pt}}{{}}
-            \titlespacing*{{\section}}{{0pt}}{{1.5ex}}{{1ex}}
-            \titlespacing*{{\subsection}}{{0pt}}{{1.5ex}}{{1ex}}
-            \titlespacing*{{\subsubsection}}{{0pt}}{{1.5ex}}{{1ex}}
-            \setcounter{{secnumdepth}}{{-1}}
-            \setcounter{{tocdepth}}{{1}}
-            \setlength{{\parindent}}{{0pt}}
-            % Redefine \sectionmark to show only the section title without numbering
-            \renewcommand{{\sectionmark}}[1]{{\markright{{#1}}}}
-            \pagestyle{{fancy}}
-            \fancyhf{{}} % Clear all headers and footers first
-            \renewcommand{{\headrulewidth}}{{0pt}} % Remove the horizontal header line
-            % Define the header for odd pages (right-hand pages)
-            \fancyhead[RO]{{\nouppercase{{\rightmark}}}} % Right Odd: Show the current section title
-            % Define the footer for even pages (left-hand pages)
-            \fancyfoot[LE,RO]{{\thepage}} % Left Even, Right Odd
-            % Define the footer for odd pages (right-hand pages)
-            \fancyfoot[LO,CE]{{}}
-            % Redefine the plain page style (used for chapter pages)
-            \fancypagestyle{{plain}}{{
-                \fancyhf{{}} % Clear all header and footer fields
-                \fancyfoot[LE,RO]{{\thepage}} % Page numbers on the bottom left for even pages and bottom right for odd pages
-                \renewcommand{{\headrulewidth}}{{0pt}}
-            }}
-            \begin{{document}}
-        ''')
+        \definecolor{{ChesscomGreen}}{{RGB}}{{78, 120, 55}}
+
+        \renewcommand{{\tabularxcolumn}}[1]{{>{{\centering\arraybackslash}}m{{#1}}}}
+
+        % --- Styling for all section-level titles ---
+        \titleformat{{\section}}{{\normalfont\Large\bfseries}}{{}}{{0pt}}{{}}
+        \titlespacing*{{\section}}{{0pt}}{{1.5ex}}{{1ex}}
+        \titlespacing*{{\subsection}}{{0pt}}{{1.5ex}}{{1ex}}
+        \titlespacing*{{\subsubsection}}{{0pt}}{{1.5ex}}{{1ex}}
+
+        % tocsetup is now much simpler
+        \setcounter{{secnumdepth}}{{-1}}
+        \setcounter{{tocdepth}}{{1}}
+        \setlength{{\parindent}}{{0pt}}
+
+        % Only need to define the header for right-hand pages (for sections)
+        \renewcommand{{\sectionmark}}[1]{{\markright{{#1}}}}
+
+        \pagestyle{{fancy}}
+        \fancyhf{{}}
+        \renewcommand{{\headrulewidth}}{{0pt}}
+
+        \fancyhead[RO]{{\nouppercase{{\rightmark}}}}
+        \fancyfoot[LE,RO]{{\thepage}}
+
+        \fancypagestyle{{plain}}{{
+            \fancyhf{{}}
+            \fancyfoot[LE,RO]{{\thepage}}
+            \renewcommand{{\headrulewidth}}{{0pt}}
+        }}
+        \begin{{document}}
+    ''')
 
 
 LATEX_HEADER_PART2_TOC = dedent(r'''
@@ -840,14 +841,16 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
     title = MESSAGES[lang]['how_to_read_title']
 
     tex_master.append(r"\cleardoublepage")
-    tex_master.append(f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}")
-    tex_master.append(f"\\markboth{{{title}}}{{{title}}}")
+    tex_master.append(f"\\addcontentsline{{toc}}{{section}}{{{title}}}")
+    # Use \markright for a section-level header
+    tex_master.append(f"\\markright{{{title}}}")
 
     pgn_io = io.StringIO(OPERA_GAME_PGN)
     game = chess.pgn.read_game(pgn_io)
     analysis_data = []
     if engine:
         analysis_data = analyze_game_with_stockfish(game, engine)
+
     export_game_to_latex(
         game, 0, output_dir, analysis_data, args, annotated=True
     )
@@ -978,11 +981,11 @@ def _format_preface_txt(content):
 
     return (
             r"\cleardoublepage" + "\n" +
-            f"\\chapter*{{{title}}}" + "\n" +
-            # This command clears the header text for the preface pages.
-            f"\\markboth{{{''}}}{{{''}}}" + "\n" +
-            f"\\addcontentsline{{toc}}{{chapter}}{{{title}}}" + "\n" +
-            r"\thispagestyle{fancy}" + "\n" +  # Use the standard page style
+            f"\\section*{{{title}}}" + "\n" +
+            f"\\addcontentsline{{toc}}{{section}}{{{title}}}" + "\n" +
+            # This command clears the right-hand header for this section.
+            f"\\markright{{{''}}}" + "\n" +
+            r"\thispagestyle{fancy}" + "\n" +
             content_processed + "\n"
     )
 
