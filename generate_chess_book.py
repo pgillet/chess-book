@@ -1049,6 +1049,9 @@ def generate_chess_book(args):
     preface_content = _process_book_part(design_dir, "preface")
     back_cover_content = _process_book_part(design_dir, "back-cover")
 
+    # Check if any front matter content was actually loaded.
+    has_front_matter = any([front_cover_content, dedication_content, epigraph_content, preface_content])
+
     # --- Assemble the Book in Order ---
     tex_master = []
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
@@ -1057,6 +1060,10 @@ def generate_chess_book(args):
     # 1. Front Cover
     if front_cover_content:
         tex_master.append(front_cover_content)
+
+    # Add a blank page
+    if has_front_matter:
+        tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
 
     # 2. Dedication & Epigraph
     if dedication_content:
@@ -1095,6 +1102,10 @@ def generate_chess_book(args):
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
             print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
+
+    # Add a blank page at the very end if there is front matter.
+    if has_front_matter:
+        tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
 
     # 5. Back Cover at the very end
     if back_cover_content:
