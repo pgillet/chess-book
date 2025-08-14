@@ -639,15 +639,47 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
         latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
 
-        board_footnote_mark, board_footnote_text, analysis_footnote_mark, analysis_footnote_text = "", "", "", ""
+        deferred_footnotetexts = []
+
+        board_footnote_mark = ""
         if i == 0 and annotated:
             board_footnote_mark = "\\footnotemark "
-            analysis_footnote_mark = "\\footnotemark "
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
-            board_footnote_text = f"\\addtocounter{{footnote}}{{-2}}\\stepcounter{{footnote}}\\footnotetext{{{MESSAGES[lang][key]}}}"
-            analysis_footnote_text = f"\\stepcounter{{footnote}}\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}"
+            deferred_footnotetexts.append(f"\\footnotetext{{{MESSAGES[lang][key]}}}")
 
-        # Build the command strings for the chessboards, now including check marks
+        analysis_footnote_mark = ""
+        if i == 0 and annotated and (white_analysis or black_analysis):
+            analysis_footnote_mark = "\\footnotemark "
+            deferred_footnotetexts.append(f"\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}")
+
+        def format_analysis(analysis, node):
+            if not analysis:
+                return "", ""
+
+            comment_footnote_mark = ""
+            comment = node.comment if node and node.comment and not node.comment.strip().startswith('[%') else None
+            if comment:
+                comment_footnote_mark = "\\footnotemark "
+                deferred_footnotetexts.append(f"\\footnotetext{{{escape_latex_special_chars(comment)}}}")
+
+            eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
+
+            if analysis['played_move'] != analysis['engine_best_move_from_pos'] and not analysis[
+                'engine_eval_before_played_move'].is_mate():
+                loss_str = f"\\textit{{{MESSAGES[lang]['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}"
+                classification = classify_move_loss(analysis['cpl_for_move'], lang)
+                best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
+                separator = "\\text{\\textbar}"
+                line1 = f"{comment_footnote_mark}{eval_str} {separator} {loss_str}"
+                line2 = f"{classification} ({best_move_str})"
+                return line1, line2
+            else:
+                line1 = f"{comment_footnote_mark}{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
+                return line1, "\\strut"
+
+        white_line1, white_line2 = format_analysis(white_analysis, white_node)
+        black_line1, black_line2 = format_analysis(black_analysis, black_node)
+
         board1_cmd = f"\\chessboard[setfen={{ {fen1} }}, boardfontsize={board_size}, mover=b, showmover={show_mover}, linewidth=0.1em, pgfstyle=border, {marked_sq1}{king_mark_opts1}]"
 
         board2_cmd = ""
@@ -661,35 +693,17 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         latex_lines.append("\\end{tabularx}")
 
         if white_analysis or black_analysis:
-            def format_analysis(analysis, node):
-                if not analysis: return "", ""
-                comment_footnote = ""
-                comment = node.comment if node and node.comment and not node.comment.strip().startswith('[%') else None
-                if comment: comment_footnote = f"\\footnote{{{escape_latex_special_chars(comment)}}}"
-                eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
-                if analysis['played_move'] != analysis['engine_best_move_from_pos'] and not analysis[
-                    'engine_eval_before_played_move'].is_mate():
-                    loss_str = f"\\textit{{{MESSAGES[lang]['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}"
-                    classification = classify_move_loss(analysis['cpl_for_move'], lang)
-                    best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
-                    separator = "\\text{\\textbar}"
-                    line1 = f"{eval_str}{comment_footnote} {separator} {loss_str}"
-                    line2 = f"{classification} ({best_move_str})"
-                    return line1, line2
-                else:
-                    line1 = f"{eval_str}{comment_footnote} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
-                    return line1, "\\strut"
-
-            white_line1, white_line2 = format_analysis(white_analysis, white_node)
-            black_line1, black_line2 = format_analysis(black_analysis, black_node)
             latex_lines.append("\\begin{tabularx}{\\linewidth}{X X}")
             latex_lines.append(f"{analysis_footnote_mark}{white_line1} & {black_line1} \\\\")
             latex_lines.append(f"{white_line2} & {black_line2} \\\\")
             latex_lines.append("\\end{tabularx}")
 
         latex_lines.append(r"\end{minipage}")
-        latex_lines.append(board_footnote_text)
-        latex_lines.append(analysis_footnote_text)
+
+        if deferred_footnotetexts:
+            latex_lines.append(f"\\addtocounter{{footnote}}{{-{len(deferred_footnotetexts)}}}")
+            for text in deferred_footnotetexts:
+                latex_lines.append(f"\\stepcounter{{footnote}}{text}")
 
     return latex_lines
 
