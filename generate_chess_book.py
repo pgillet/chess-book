@@ -1000,6 +1000,8 @@ def _format_preface_txt(content):
             # This command clears the right-hand header for this section.
             f"\\markright{{{''}}}" + "\n" +
             r"\thispagestyle{fancy}" + "\n" +
+            # Add vertical space after the title. Adjust '2\baselineskip' for more/less space.
+            r"\vspace*{2\baselineskip}" + "\n" +
             content_processed + "\n"
     )
 
