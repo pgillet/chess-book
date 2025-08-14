@@ -1057,7 +1057,6 @@ def generate_chess_book(args):
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
     tex_master.append(get_latex_header_part1(settings))
 
-    # 1. Front Cover
     if front_cover_content:
         tex_master.append(front_cover_content)
 
@@ -1065,16 +1064,17 @@ def generate_chess_book(args):
     if has_front_matter:
         tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
 
-    # 2. Dedication & Epigraph
+    # Ensure dedication, epigraph, TOC, and preface start on an odd page.
     if dedication_content:
+        tex_master.append(r"\cleardoublepage")
         tex_master.append(dedication_content)
     if epigraph_content:
+        tex_master.append(r"\cleardoublepage")
         tex_master.append(epigraph_content)
 
-    # 3. Table of Contents
+    tex_master.append(r"\cleardoublepage")
     tex_master.append(LATEX_HEADER_PART2_TOC)
 
-    # 4. Preface
     if preface_content:
         tex_master.append(preface_content)
 
@@ -1103,11 +1103,11 @@ def generate_chess_book(args):
         except Exception as e:
             print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
 
-    # Add a blank page at the very end if there is front matter.
+    # Add a blank page if there is front matter.
     if has_front_matter:
         tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
 
-    # 5. Back Cover at the very end
+    # Back Cover at the very end
     if back_cover_content:
         tex_master.append(back_cover_content)
 
