@@ -975,7 +975,6 @@ def _format_dedication_epigraph_txt(content):
     content_processed = content_processed.replace('\n', r"\\* ")
     return (
             r"\newpage" + "\n" +
-            r"\thispagestyle{empty}" + "\n" +
             r"\vspace*{.3\textheight}" + "\n" +
             r"\begin{flushright}" + "\n" +
             r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
@@ -1057,6 +1056,11 @@ def generate_chess_book(args):
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
     tex_master.append(get_latex_header_part1(settings))
 
+    # --- START OF FIX ---
+    # Switch to frontmatter mode and set the page style to empty for this section.
+    tex_master.append(r"\frontmatter")
+    tex_master.append(r"\pagestyle{empty}")
+
     if front_cover_content:
         tex_master.append(front_cover_content)
 
@@ -1073,6 +1077,12 @@ def generate_chess_book(args):
         tex_master.append(epigraph_content)
 
     tex_master.append(r"\cleardoublepage")
+
+    # Switch to mainmatter mode. This resets the page number to 1 (Arabic).
+    tex_master.append(r"\mainmatter")
+    # Restore the default 'fancy' page style for the rest of the book.
+    tex_master.append(r"\pagestyle{fancy}")
+
     tex_master.append(LATEX_HEADER_PART2_TOC)
 
     if preface_content:
@@ -1109,6 +1119,8 @@ def generate_chess_book(args):
 
     # Back Cover at the very end
     if back_cover_content:
+        # The backmatter command is useful for appendices, indices, etc.
+        tex_master.append(r"\backmatter")
         tex_master.append(back_cover_content)
 
     tex_master.append(LATEX_FOOTER)
