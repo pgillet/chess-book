@@ -174,6 +174,7 @@ MESSAGES = {
         'term_resignation': '{player} won by resignation',
         'term_time': '{player} won on time',
         'toc_title': 'Table of Contents',
+        'preface': 'Preface',
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -244,6 +245,7 @@ MESSAGES = {
         'term_resignation': '{player} a gagné par abandon',
         'term_time': '{player} a gagné au temps',
         'toc_title': 'Table des Matières',
+        'preface': 'Préface',
     }
 }
 
@@ -984,9 +986,9 @@ def _format_dedication_epigraph_txt(content):
     )
 
 
-def _format_preface_txt(content):
+def _format_preface_txt(content, lang):
     """Formats raw text for a preface page (justified with a title)."""
-    title = "Preface"  # You can expand this to be dynamic if needed
+    title = MESSAGES[lang]['preface']
 
     # Process text to respect paragraph breaks
     paragraphs = content.strip().split('\n\n')
@@ -1005,7 +1007,7 @@ def _format_preface_txt(content):
     )
 
 
-def _process_book_part(directory, basename):
+def _process_book_part(directory, basename, lang):
     """
     Finds a book part file and returns its processed LaTeX content.
     """
@@ -1022,7 +1024,7 @@ def _process_book_part(directory, basename):
         if basename in ["dedication", "epigraph"]:
             return _format_dedication_epigraph_txt(content)
         if basename == "preface":
-            return _format_preface_txt(content)
+            return _format_preface_txt(content, lang)
         # Placeholder for back-cover text formatting if needed in the future
         # if basename == "back-cover":
         #     return _format_back_cover_txt(content)
@@ -1042,11 +1044,11 @@ def generate_chess_book(args):
 
     # --- Process Book Design Directory ---
     design_dir = args.book_design_dir
-    front_cover_content = _process_book_part(design_dir, "front-cover")
-    dedication_content = _process_book_part(design_dir, "dedication")
-    epigraph_content = _process_book_part(design_dir, "epigraph")
-    preface_content = _process_book_part(design_dir, "preface")
-    back_cover_content = _process_book_part(design_dir, "back-cover")
+    front_cover_content = _process_book_part(design_dir, "front-cover", args.language)
+    dedication_content = _process_book_part(design_dir, "dedication", args.language)
+    epigraph_content = _process_book_part(design_dir, "epigraph", args.language)
+    preface_content = _process_book_part(design_dir, "preface", args.language)
+    back_cover_content = _process_book_part(design_dir, "back-cover", args.language)
 
     # Check if any front matter content was actually loaded.
     has_front_matter = any([front_cover_content, dedication_content, epigraph_content, preface_content])
