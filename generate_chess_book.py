@@ -1113,14 +1113,18 @@ def generate_chess_book(args):
         except Exception as e:
             print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
 
+    tex_master.append(r"\cleardoublepage")
+
+    # The backmatter command is useful for appendices, indices, etc.
+    tex_master.append(r"\backmatter")
+
     # Add a blank page if there is front matter.
     if has_front_matter:
+        tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
         tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
 
     # Back Cover at the very end
     if back_cover_content:
-        # The backmatter command is useful for appendices, indices, etc.
-        tex_master.append(r"\backmatter")
         tex_master.append(back_cover_content)
 
     tex_master.append(LATEX_FOOTER)
