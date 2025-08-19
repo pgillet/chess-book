@@ -1007,6 +1007,42 @@ def _format_preface_txt(content, lang):
     )
 
 
+def _parse_cover_metadata(cover_content):
+    """Parses a LaTeX string to find \booktitle, \booksubtitle, and \bookauthor commands."""
+    metadata = {}
+    patterns = {
+        'title': re.compile(r'\\booktitle\{(.*?)\}', re.DOTALL),
+        'subtitle': re.compile(r'\\booksubtitle\{(.*?)\}', re.DOTALL),
+        'author': re.compile(r'\\bookauthor\{(.*?)\}', re.DOTALL),
+    }
+    for key, pattern in patterns.items():
+        match = pattern.search(cover_content)
+        if match:
+            metadata[key] = match.group(1).strip()
+    return metadata
+
+
+def _generate_simple_title_page(title, subtitle, author):
+    """Generates a simple, clean title page from strings."""
+    title_latex = f"{{\\Huge \\bfseries {escape_latex_special_chars(title)}}}" if title else ""
+    subtitle_latex = f"{{\\Large \\itshape {escape_latex_special_chars(subtitle)}}}" if subtitle else ""
+    author_latex = f"{{\\Large {escape_latex_special_chars(author)}}}" if author else ""
+
+    return dedent(fr'''
+        \begin{{titlepage}}
+            \thispagestyle{{empty}}
+            \centering
+            \vspace*{{4cm}}
+            {title_latex}
+            \vspace{{1.5cm}}
+            {subtitle_latex}
+            \vfill
+            {author_latex}
+            \vspace*{{2cm}}
+        \end{{titlepage}}
+    ''')
+
+
 def _process_book_part(directory, basename, lang):
     """
     Finds a book part file and returns its processed LaTeX content.
@@ -1031,6 +1067,7 @@ def _process_book_part(directory, basename, lang):
 
     return ""  # Ignore unknown files
 
+
 def generate_chess_book(args):
     """
     Orchestrates the creation of the chess book from command-line arguments.
@@ -1042,9 +1079,22 @@ def generate_chess_book(args):
 
     settings = PAPER_SIZE_SETTINGS[args.paper_size]
 
-    # --- Process Book Design Directory ---
+    # --- Process Book Design and Metadata ---
     design_dir = args.book_design_dir
-    front_cover_content = _process_book_part(design_dir, "front-cover", args.language)
+    book_metadata = {}
+    front_cover_content = ""
+    cover_file_path, _ = _find_book_part_file(design_dir, "front-cover")
+
+    if cover_file_path:
+        print("Found front cover file, parsing for metadata...")
+        front_cover_content = cover_file_path.read_text(encoding='utf-8')
+        book_metadata = _parse_cover_metadata(front_cover_content)
+
+    # Fallback to CLI options if metadata not in cover file
+    title = book_metadata.get('title', args.title)
+    subtitle = book_metadata.get('subtitle', args.subtitle)
+    author = book_metadata.get('author', args.author)
+
     dedication_content = _process_book_part(design_dir, "dedication", args.language)
     epigraph_content = _process_book_part(design_dir, "epigraph", args.language)
     preface_content = _process_book_part(design_dir, "preface", args.language)
@@ -1053,12 +1103,11 @@ def generate_chess_book(args):
     # Check if any front matter content was actually loaded.
     has_front_matter = any([front_cover_content, dedication_content, epigraph_content, preface_content])
 
-    # --- Assemble the Book in Order ---
+    # --- Assemble the Book ---
     tex_master = []
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
     tex_master.append(get_latex_header_part1(settings))
 
-    # --- START OF FIX ---
     # Switch to frontmatter mode and set the page style to empty for this section.
     tex_master.append(r"\frontmatter")
     tex_master.append(r"\pagestyle{empty}")
@@ -1069,6 +1118,11 @@ def generate_chess_book(args):
     # Add a blank page
     if has_front_matter:
         tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
+
+    # Generate a simple title page if no front cover was provided but title/author info exists
+    if not front_cover_content and (title or subtitle or author):
+        tex_master.append(_generate_simple_title_page(title, subtitle, author))
+        tex_master.append(r"\cleardoublepage")
 
     # Ensure dedication, epigraph, TOC, and preface start on an odd page.
     if dedication_content:
@@ -1142,6 +1196,12 @@ if __name__ == "__main__":
     parser.add_argument("output_dir", type=str, help="Directory where the LaTeX files and the final PDF will be generated.")
     parser.add_argument("--book_design_dir", type=str,
                         help="Directory containing LaTeX/text files for book parts (front-cover, dedication, etc.).")
+    parser.add_argument("--title", type=str,
+                        help="The title of the book (used if not in front cover).")
+    parser.add_argument("--subtitle", type=str,
+                        help="The subtitle of the book (optional).")
+    parser.add_argument("--author", type=str,
+                        help="The author of the book (optional).")
     parser.add_argument("--notation_type", type=str, choices=["algebraic", "figurine"], default="figurine",
                         help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine').")
     parser.add_argument("--display_boards", action="store_true", help="Enable display of chessboards. If off (default), only notation is displayed.")
