@@ -1197,7 +1197,7 @@ if __name__ == "__main__":
     parser.add_argument("--book_design_dir", type=str,
                         help="Directory containing LaTeX/text files for book parts (front-cover, dedication, etc.).")
     parser.add_argument("--title", type=str,
-                        help="The title of the book (used if not in front cover).")
+                        help="The title of the book (optional).")
     parser.add_argument("--subtitle", type=str,
                         help="The subtitle of the book (optional).")
     parser.add_argument("--author", type=str,
