@@ -1028,14 +1028,21 @@ def _generate_simple_title_page(title, subtitle, author):
     subtitle_latex = f"{{\\Large \\itshape {escape_latex_special_chars(subtitle)}}}" if subtitle else ""
     author_latex = f"{{\\Large {escape_latex_special_chars(author)}}}" if author else ""
 
+    separator = r"\\ \vspace{0.5cm}" if title and subtitle else ""
+
+    # Define the chess symbol to be placed in the middle of the page
+    knight_symbol = r"\resizebox{!}{3cm}{{\WhiteKnightOnWhite}}"
+
     return dedent(fr'''
         \begin{{titlepage}}
             \thispagestyle{{empty}}
             \centering
             \vspace*{{4cm}}
             {title_latex}
-            \vspace{{1.5cm}}
+            {separator}
             {subtitle_latex}
+            \vfill
+            {knight_symbol}
             \vfill
             {author_latex}
             \vspace*{{2cm}}
