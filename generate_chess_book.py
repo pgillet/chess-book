@@ -1023,18 +1023,26 @@ def _find_book_part_file(directory, basename):
 
 
 def _format_dedication_epigraph_txt(content):
-    """Formats raw text for a dedication or epigraph page (right-aligned)."""
+    """Formats raw text for a dedication or epigraph page (centered)."""
+    # Escape special characters first
     content_processed = escape_latex_special_chars(content)
-    content_processed = content_processed.replace('\n\n', r"\par\vspace{\baselineskip}\par")
-    content_processed = content_processed.replace('\n', r"\\* ")
+
+    # Respect paragraph breaks from the source text file
+    paragraphs = content_processed.strip().split('\n\n')
+    # Join paragraphs with a LaTeX paragraph break that includes some vertical space
+    content_processed = r"\par\vspace{1\baselineskip}\par ".join(paragraphs)
+    # Replace single newlines within a paragraph with a LaTeX line break
+    content_processed = content_processed.replace('\n', r" \\ ")
+
     return (
-            r"\newpage" + "\n" +
-            r"\vspace*{.3\textheight}" + "\n" +
-            r"\begin{flushright}" + "\n" +
-            r"\parbox{0.7\linewidth}{\raggedleft" + "\n" +
+            r"\cleardoublepage" + "\n" +
+            r"\thispagestyle{empty}" + "\n" +
+            r"\vspace*{\stretch{1}}" + "\n" +  # Flexible space above the content
+            r"\begin{center}" + "\n" +
+            fr"\large" + "\n" +  # Use a slightly larger font for style
             content_processed + "\n" +
-            r"}" + "\n" +
-            r"\end{flushright}" + "\n"
+            r"\end{center}" + "\n" +
+            r"\vspace*{\stretch{1}}" + "\n"  # Flexible space below the content
     )
 
 
