@@ -82,11 +82,21 @@ def get_latex_header_part1(settings):
         % Only need to define the header for right-hand pages (for sections)
         \renewcommand{{\sectionmark}}[1]{{\markright{{#1}}}}
 
+        % --- Redefine \cleardoublepage to use an empty page style for blank pages ---
+        \makeatletter
+        \def\cleardoublepage{{\clearpage\if@twoside \ifodd\c@page\else
+        \hbox{{}}\thispagestyle{{empty}}\newpage\if@twocolumn\hbox{{}}\newpage\fi\fi\fi}}
+        \makeatother
+
         \pagestyle{{fancy}}
         \fancyhf{{}}
         \renewcommand{{\headrulewidth}}{{0pt}}
 
+        % RO = Right header on Odd pages (current section/game title)
+        % CE = Center header on Even pages (book title)
         \fancyhead[RO]{{\nouppercase{{\rightmark}}}}
+        \fancyhead[CE]{{\nouppercase{{\booktitle}}}}
+
         \fancyfoot[LE,RO]{{\thepage}}
 
         \fancypagestyle{{plain}}{{
@@ -1114,6 +1124,11 @@ def generate_chess_book(args):
     tex_master = []
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
     tex_master.append(get_latex_header_part1(settings))
+
+    # Define book metadata commands for use in the document
+    tex_master.append(f"\\newcommand{{\\booktitle}}{{{escape_latex_special_chars(title)}}}")
+    tex_master.append(f"\\newcommand{{\\booksubtitle}}{{{escape_latex_special_chars(subtitle)}}}")
+    tex_master.append(f"\\newcommand{{\\bookauthor}}{{{escape_latex_special_chars(author)}}}")
 
     # Switch to frontmatter mode and set the page style to empty for this section.
     tex_master.append(r"\frontmatter")
