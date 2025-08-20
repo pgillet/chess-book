@@ -185,6 +185,26 @@ MESSAGES = {
         'term_time': '{player} won on time',
         'toc_title': 'Table of Contents',
         'preface': 'Preface',
+        # --- Start of new messages for the appendix ---
+        'appendix_notation_title': 'How to Read Chess Notation',
+        'appendix_algebraic_subtitle': 'Standard Algebraic Notation (SAN)',
+        'appendix_figurine_subtitle': 'Figurine Algebraic Notation (FAN)',
+        'appendix_intro': 'Chess notation is a system for recording the moves of a game. The board is a grid where each square has a unique coordinate, from a1 to h8.',
+        'appendix_piece_names': 'Piece Names and Symbols',
+        'appendix_table_piece': 'Piece',
+        'appendix_table_symbol': 'Symbol',
+        'appendix_table_king': 'King',
+        'appendix_table_queen': 'Queen',
+        'appendix_table_rook': 'Rook',
+        'appendix_table_bishop': 'Bishop',
+        'appendix_table_knight': 'Knight',
+        'appendix_table_pawn': 'Pawn (letter omitted in notation)',
+        'appendix_special_moves': 'Special Moves and Symbols',
+        'appendix_capture_text': r'\textbf{x}: Indicates a capture (e.g., \texttt{Nxf3} means a Knight captures on f3).',
+        'appendix_check_text': r'\textbf{+}: Indicates a check. \textbf{\#}: Indicates checkmate.',
+        'appendix_castling_text': r'\textbf{O-O}: Kingside castling. \textbf{O-O-O}: Queenside castling.',
+        'appendix_promotion_text': r'\textbf{=Q}: Indicates a pawn promotes to a Queen (e.g., \texttt{e8=Q}).',
+        'appendix_disambiguation': r'When two identical pieces can move to the same square, the starting file or rank is added to avoid ambiguity (e.g., \texttt{Nbd2} or \texttt{R1e2}).'
     },
     'fr': {
         'game_event_default': 'Partie',
@@ -256,6 +276,26 @@ MESSAGES = {
         'term_time': '{player} a gagné au temps',
         'toc_title': 'Table des Matières',
         'preface': 'Préface',
+        # --- Start of new messages for the appendix ---
+        'appendix_notation_title': 'Comment Lire la Notation d\'Échecs',
+        'appendix_algebraic_subtitle': 'Notation Algébrique Standard (SAN)',
+        'appendix_figurine_subtitle': 'Notation Algébrique Figurative (FAN)',
+        'appendix_intro': 'La notation échiquéenne est un système pour enregistrer les coups d\'une partie. L\'échiquier est une grille où chaque case a une coordonnée unique, de a1 à h8.',
+        'appendix_piece_names': 'Noms et Symboles des Pièces',
+        'appendix_table_piece': 'Pièce',
+        'appendix_table_symbol': 'Symbole',
+        'appendix_table_king': 'Roi',
+        'appendix_table_queen': 'Dame',
+        'appendix_table_rook': 'Tour',
+        'appendix_table_bishop': 'Fou',
+        'appendix_table_knight': 'Cavalier',
+        'appendix_table_pawn': 'Pion (lettre omise dans la notation)',
+        'appendix_special_moves': 'Coups et Symboles Spéciaux',
+        'appendix_capture_text': r'\textbf{x} : Indique une capture (par ex., \texttt{Cxf3} signifie qu\'un Cavalier capture en f3).',
+        'appendix_check_text': r'\textbf{+} : Indique un échec. \textbf{\#} : Indique un échec et mat.',
+        'appendix_castling_text': r'\textbf{O-O} : Petit roque. \textbf{O-O-O} : Grand roque.',
+        'appendix_promotion_text': r'\textbf{=D} : Indique qu\'un pion est promu en Dame (par ex., \texttt{e8=D}).',
+        'appendix_disambiguation': r'Lorsque deux pièces identiques peuvent se déplacer sur la même case, la colonne ou la rangée de départ est ajoutée pour éviter toute ambiguïté (par ex., \texttt{Cbd2} ou \texttt{T1e2}).'
     }
 }
 
@@ -1060,6 +1100,70 @@ def _generate_simple_title_page(title, subtitle, author):
     ''')
 
 
+def _generate_notation_appendix(notation_type, lang='en'):
+    """
+    Generates a LaTeX appendix explaining how to read chess notation.
+    """
+    msg = MESSAGES[lang]
+    title = msg['appendix_notation_title']
+
+    # Common parts of the explanation
+    intro = msg['appendix_intro']
+    special_moves_title = msg['appendix_special_moves']
+
+    # Build the piece table and subtitle based on notation type
+    if notation_type == 'figurine':
+        subtitle = msg['appendix_figurine_subtitle']
+        piece_table = dedent(fr'''
+            \begin{{tabular}}{{l c}}
+            \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol']}}} \\ \hline
+            {msg['appendix_table_king']} & {_get_chess_figurine('K')} / {_get_chess_figurine('k')} \\
+            {msg['appendix_table_queen']} & {_get_chess_figurine('Q')} / {_get_chess_figurine('q')} \\
+            {msg['appendix_table_rook']} & {_get_chess_figurine('R')} / {_get_chess_figurine('r')} \\
+            {msg['appendix_table_bishop']} & {_get_chess_figurine('B')} / {_get_chess_figurine('b')} \\
+            {msg['appendix_table_knight']} & {_get_chess_figurine('N')} / {_get_chess_figurine('n')} \\
+            \multicolumn{{2}}{{l}}{{{msg['appendix_table_pawn']}}} \\
+            \end{{tabular}}
+        ''')
+    else:  # algebraic
+        subtitle = msg['appendix_algebraic_subtitle']
+        piece_table = dedent(fr'''
+            \begin{{tabular}}{{l c}}
+            \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol']}}} \\ \hline
+            {msg['appendix_table_king']} & K \\
+            {msg['appendix_table_queen']} & Q \\
+            {msg['appendix_table_rook']} & R \\
+            {msg['appendix_table_bishop']} & B \\
+            {msg['appendix_table_knight']} & N \\
+            \multicolumn{{2}}{{l}}{{{msg['appendix_table_pawn']}}} \\
+            \end{{tabular}}
+        ''')
+
+    # Assemble the final LaTeX string for the appendix
+    return dedent(fr'''
+        \cleardoublepage
+        \section*{{{title}}}
+        \addcontentsline{{toc}}{{section}}{{{title}}}
+        \markright{{{''}}} % Clear the header for the appendix page
+        \thispagestyle{{fancy}}
+
+        \subsection*{{{subtitle}}}
+        {intro}
+
+        \subsubsection*{{{msg['appendix_piece_names']}}}
+        {piece_table}
+
+        \subsubsection*{{{special_moves_title}}}
+        \begin{{itemize}}[leftmargin=*]
+            \item {msg['appendix_capture_text']}
+            \item {msg['appendix_check_text']}
+            \item {msg['appendix_castling_text']}
+            \item {msg['appendix_promotion_text']}
+            \item {msg['appendix_disambiguation']}
+        \end{{itemize}}
+    ''')
+
+
 def _generate_final_page():
     """Generates a final, clean page with a large king symbol."""
     # Define the chess symbol to be placed on the page
@@ -1211,7 +1315,11 @@ def generate_chess_book(args):
     # The backmatter command is useful for appendices, indices, etc.
     tex_master.append(r"\backmatter")
 
-    # Add the new final page with the king symbol here
+    # Add the notation appendix
+    if args.how_to_read:
+        tex_master.append(_generate_notation_appendix(args.notation_type, args.language))
+
+    # Add the final page with the king symbol
     tex_master.append(_generate_final_page())
 
     # Add a blank page if there is front matter.
