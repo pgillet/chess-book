@@ -204,6 +204,7 @@ MESSAGES = {
         'appendix_check_text': r'\textbf{+}: Indicates a check. \textbf{\#}: Indicates checkmate.',
         'appendix_castling_text': r'\textbf{O-O}: Kingside castling. \textbf{O-O-O}: Queenside castling.',
         'appendix_promotion_text': r'\textbf{=Q}: Indicates a pawn promotes to a Queen (e.g., \texttt{e8=Q}).',
+        'appendix_en_passant_text': r'\textbf{e.p.}: Indicates a capture "en passant" (in passing), a special pawn capture that can occur immediately after a pawn makes a two-square advance from its starting square.',
         'appendix_disambiguation': r'When two identical pieces can move to the same square, the starting file or rank is added to avoid ambiguity (e.g., \texttt{Nbd2} or \texttt{R1e2}).'
     },
     'fr': {
@@ -277,7 +278,7 @@ MESSAGES = {
         'toc_title': 'Table des Matières',
         'preface': 'Préface',
         # --- Start of new messages for the appendix ---
-        'appendix_notation_title': 'Comment Lire la Notation d\'Échecs',
+        'appendix_notation_title': 'Comment Lire la Notation aux Échecs',
         'appendix_algebraic_subtitle': 'Notation Algébrique Standard (SAN)',
         'appendix_figurine_subtitle': 'Notation Algébrique Figurative (FAN)',
         'appendix_intro': 'La notation échiquéenne est un système pour enregistrer les coups d\'une partie. L\'échiquier est une grille où chaque case a une coordonnée unique, de a1 à h8.',
@@ -295,6 +296,7 @@ MESSAGES = {
         'appendix_check_text': r'\textbf{+} : Indique un échec. \textbf{\#} : Indique un échec et mat.',
         'appendix_castling_text': r'\textbf{O-O} : Petit roque. \textbf{O-O-O} : Grand roque.',
         'appendix_promotion_text': r'\textbf{=D} : Indique qu\'un pion est promu en Dame (par ex., \texttt{e8=D}).',
+        'appendix_en_passant_text': r'\textbf{e.p.} : Indique une capture « en passant », une capture spéciale du pion qui ne peut se produire qu\'immédiatement après qu\'un pion a avancé de deux cases depuis sa case de départ.',
         'appendix_disambiguation': r'Lorsque deux pièces identiques peuvent se déplacer sur la même case, la colonne ou la rangée de départ est ajoutée pour éviter toute ambiguïté (par ex., \texttt{Cbd2} ou \texttt{T1e2}).'
     }
 }
@@ -1149,6 +1151,12 @@ def _generate_notation_appendix(notation_type, lang='en'):
 
         \subsection*{{{subtitle}}}
         {intro}
+        
+        \smallskip
+        \begin{{center}}
+        \chessboard[tinyboard, showmover=false]
+        \end{{center}}
+        \smallskip
 
         \subsubsection*{{{msg['appendix_piece_names']}}}
         {piece_table}
@@ -1156,6 +1164,7 @@ def _generate_notation_appendix(notation_type, lang='en'):
         \subsubsection*{{{special_moves_title}}}
         \begin{{itemize}}[leftmargin=*]
             \item {msg['appendix_capture_text']}
+            \item {msg['appendix_en_passant_text']}
             \item {msg['appendix_check_text']}
             \item {msg['appendix_castling_text']}
             \item {msg['appendix_promotion_text']}
