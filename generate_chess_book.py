@@ -1041,7 +1041,7 @@ def _generate_simple_title_page(title, subtitle, author):
     separator = r"\\ \vspace{0.5cm}" if title and subtitle else ""
 
     # Define the chess symbol to be placed in the middle of the page
-    knight_symbol = r"\resizebox{!}{3cm}{{\WhiteKnightOnWhite}}"
+    knight_symbol = r"\resizebox{!}{3cm}{{\WhiteKnightOnBlack}}"
 
     return dedent(fr'''
         \begin{{titlepage}}
@@ -1059,6 +1059,21 @@ def _generate_simple_title_page(title, subtitle, author):
         \end{{titlepage}}
     ''')
 
+
+def _generate_final_page():
+    """Generates a final, clean page with a large king symbol."""
+    # Define the chess symbol to be placed on the page
+    king_symbol = r"\resizebox{!}{3cm}{{\WhiteKingOnBlack}}"
+
+    return dedent(fr'''
+        \cleardoublepage
+        \thispagestyle{{empty}}
+        \vspace*{{\stretch{{1}}}}
+        \begin{{center}}
+        {king_symbol}
+        \end{{center}}
+        \vspace*{{\stretch{{2}}}}
+    ''')
 
 def _process_book_part(directory, basename, lang):
     """
@@ -1195,6 +1210,9 @@ def generate_chess_book(args):
 
     # The backmatter command is useful for appendices, indices, etc.
     tex_master.append(r"\backmatter")
+
+    # Add the new final page with the king symbol here
+    tex_master.append(_generate_final_page())
 
     # Add a blank page if there is front matter.
     if has_front_matter:
