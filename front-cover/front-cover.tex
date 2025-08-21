@@ -1,0 +1,90 @@
+\documentclass[a5paper]{article}
+
+% --- REQUIRED PACKAGES ---
+\usepackage[pass]{geometry}      % Ensures no margins are added to the page
+\usepackage{graphicx}         % For including images (\includegraphics)
+\usepackage{xcolor}           % For defining and using custom colors
+\usepackage{tikz}             % For creating the overlay layout with nodes
+\usepackage{chessboard}       % For chess piece symbols
+\usepackage[T1]{fontenc}        % For better character and font encoding
+\usepackage{helvet}           % To use a Helvetica-like font
+\usepackage{calc}             % For calculations like \widthof
+
+% --- CUSTOM DEFINITIONS ---
+% Defines the custom green color used throughout the cover
+\definecolor{ChesscomGreen}{RGB}{78, 120, 55}
+
+% --- DOCUMENT BEGINS ---
+\begin{document}
+
+\begin{titlepage}
+    \thispagestyle{empty} % No page numbers on the cover
+
+    % The TikZ overlay is used to precisely layer all cover elements
+    \begin{tikzpicture}[remember picture, overlay]
+
+        % --- 1. BACKGROUND IMAGE ---
+        % This node is placed at the center of the page and contains the main background image,
+        % scaled to fill the entire paper area.
+        \node at (current page.center) {
+            \includegraphics[width=\paperwidth, height=\paperheight]{cover_image}
+        };
+
+        % --- 2. TITLE & SUBTITLE BLOCK ---
+        % This node contains the border, title, and subtitle. It is positioned
+        % relative to the bottom-right corner of the page.
+        \node[
+            name=titleblock,            % We name this node to position the author relative to it
+            draw=ChesscomGreen,         % Sets the border color
+            line width=4pt,             % Sets the border thickness
+            inner sep=7pt,              % Padding inside the border
+            text width=0.7\textwidth,   % The maximum width of the text block
+            align=center,               % Center-aligns the content within the node's text width
+            anchor=south east,          % Positions the node by its bottom-right corner
+            xshift=-0.6cm,                % Horizontal padding from the page edge
+            yshift=0.6cm                  % Vertical padding from the page edge
+        ] at (current page.south east) {
+
+            % --- Title Text ---
+            \textcolor{ChesscomGreen}{{\fontsize{34pt}{72pt}\selectfont \bfseries
+                \textsf{Krystof126}
+            }}
+
+            \vspace{0.25cm}
+
+            % --- Subtitle with Background Box ---
+            % A colorbox creates the green rectangle. A parbox inside controls the text.
+            {%
+                \setlength{\fboxsep}{9pt}%           % Sets local padding for the colorbox
+                \colorbox{ChesscomGreen}{%
+                    \parbox{\linewidth-2\fboxsep}{%   % Adjusts width to account for padding
+                        \flushright                  % Right-aligns the text inside the box
+                        \color{white}\Large\textsf{Ses plus belles parties d'échecs sur \textbf{Chess}.com}
+                    }%
+                }%
+            }
+        }; % End of titleblock node
+
+        % --- 3. AUTHOR NAME ---
+        % This node is rotated and positioned to the left of the title block.
+        \node[
+            color=ChesscomGreen,
+            rotate=90,                  % Rotates the text 90 degrees counter-clockwise
+            anchor=south                % Anchors the text at its new "bottom" edge
+        ] at (titleblock.west) {        % Positions this node relative to the left edge of titleblock
+             {\Large \textsf{Pascal GILLET}}
+        };
+
+        % --- 4. DECORATIVE IMAGE ---
+        % This node is positioned in the bottom-left corner.
+        \node[
+            anchor=south west           % Positions the node by its bottom-left corner
+        ] at (current page.south west) {
+            \includegraphics[height=5cm]{pawn}
+        };
+
+    \end{tikzpicture}
+
+\end{titlepage}
+
+\end{document}
