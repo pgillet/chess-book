@@ -292,11 +292,11 @@ MESSAGES = {
         'appendix_table_knight': 'Cavalier',
         'appendix_table_pawn': 'Pion (lettre omise dans la notation)',
         'appendix_special_moves': 'Coups et Symboles Spéciaux',
-        'appendix_capture_text': r'\textbf{x} : Indique une capture (par ex., \texttt{Cxf3} signifie qu\'un Cavalier capture en f3).',
+        'appendix_capture_text': r"\textbf{x} : Indique une capture (par ex., \texttt{Cxf3} signifie qu'un Cavalier capture en f3).",
         'appendix_check_text': r'\textbf{+} : Indique un échec. \textbf{\#} : Indique un échec et mat.',
         'appendix_castling_text': r'\textbf{O-O} : Petit roque. \textbf{O-O-O} : Grand roque.',
-        'appendix_promotion_text': r'\textbf{=D} : Indique qu\'un pion est promu en Dame (par ex., \texttt{e8=D}).',
-        'appendix_en_passant_text': r'\textbf{e.p.} : Indique une capture « en passant », une capture spéciale du pion qui ne peut se produire qu\'immédiatement après qu\'un pion a avancé de deux cases depuis sa case de départ.',
+        'appendix_promotion_text': r"\textbf{=D} : Indique qu'un pion est promu en Dame (par ex., \texttt{e8=D}).",
+        'appendix_en_passant_text': r"\textbf{e.p.} : Indique une capture « en passant », une capture spéciale du pion qui ne peut se produire qu'immédiatement après qu'un pion a avancé de deux cases depuis sa case de départ.",
         'appendix_disambiguation': r'Lorsque deux pièces identiques peuvent se déplacer sur la même case, la colonne ou la rangée de départ est ajoutée pour éviter toute ambiguïté (par ex., \texttt{Cbd2} ou \texttt{T1e2}).'
     }
 }
