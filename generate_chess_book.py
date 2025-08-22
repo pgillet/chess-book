@@ -1126,11 +1126,11 @@ def _generate_notation_appendix(notation_type, lang='en'):
     piece_table = dedent(fr'''
         \begin{{tabular}}{{l c c}}
         \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol_san']}}} & \textbf{{{msg['appendix_table_symbol_fan']}}} \\ \hline
-        {msg['appendix_table_king']} & K & {_get_chess_figurine('K', inline=False)} / {_get_chess_figurine('k', inline=False)} \\
-        {msg['appendix_table_queen']} & Q & {_get_chess_figurine('Q', inline=False)} / {_get_chess_figurine('q', inline=False)} \\
-        {msg['appendix_table_rook']} & R & {_get_chess_figurine('R', inline=False)} / {_get_chess_figurine('r', inline=False)} \\
-        {msg['appendix_table_bishop']} & B & {_get_chess_figurine('B', inline=False)} / {_get_chess_figurine('b', inline=False)} \\
-        {msg['appendix_table_knight']} & N & {_get_chess_figurine('N', inline=False)} / {_get_chess_figurine('n', inline=False)} \\
+        {msg['appendix_table_king']} & K & {_get_chess_figurine('K')} / {_get_chess_figurine('k')} \\
+        {msg['appendix_table_queen']} & Q & {_get_chess_figurine('Q')} / {_get_chess_figurine('q')} \\
+        {msg['appendix_table_rook']} & R & {_get_chess_figurine('R')} / {_get_chess_figurine('r')} \\
+        {msg['appendix_table_bishop']} & B & {_get_chess_figurine('B')} / {_get_chess_figurine('b')} \\
+        {msg['appendix_table_knight']} & N & {_get_chess_figurine('N')} / {_get_chess_figurine('n')} \\
         \multicolumn{{3}}{{l}}{{{msg['appendix_table_pawn']}}} \\
         \end{{tabular}}
     ''')
