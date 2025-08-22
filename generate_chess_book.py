@@ -1,3 +1,4 @@
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -114,193 +115,6 @@ LATEX_HEADER_PART2_TOC = dedent(r'''
 
 LATEX_FOOTER = "\\end{document}"
 
-MESSAGES = {
-    'en': {
-        'game_event_default': 'Game',
-        'white_player_default': 'White',
-        'black_player_default': 'Black',
-        'analysis_summary_title': 'Analysis Summary',
-        'overall_accuracy': 'Overall Accuracy:',
-        'white_avg_cpl': 'White Average CPL:',
-        'black_avg_cpl': 'Black Average CPL:',
-        'mistakes_blunders': 'Mistakes & Blunders:',
-        'blunders_text': 'Blunders',
-        'blunder_text_singular': 'Blunder',
-        'mistakes_text': 'Mistakes',
-        'mistake_text_singular': 'Mistake',
-        'inaccuracies_text': 'Inaccuracies',
-        'inaccuracy_text_singular': 'Inaccuracy',
-        'good_move_text': 'Good Move',
-        'eval_text': 'Eval:',
-        'best_move_text': 'Best:',
-        'loss_text': 'Loss:',
-        'cp_text': 'cp',
-        'best_move_played_text': 'Best Move',
-        'error_starting_stockfish': "Error starting Stockfish engine: {e}. Please ensure '{ENGINE_PATH}' is correct and Stockfish is installed.",
-        'analysis_disabled_warning': "Analysis features (CPL, blunders, best moves) will be disabled for all games.",
-        'skipping_stockfish_analysis': "Skipping Stockfish analysis for game {game_num} due to engine error.",
-        'exporting_game': "Exporting game {current_game}/{total_games} to LaTeX...",
-        'skipping_game_error': "⚠️ Skipping game {game_num} due to an error during processing: {error_msg}",
-        'deleting_output_dir': "Deleting existing output directory: {output_dir}",
-        'error_deleting_dir': "Error deleting directory {output_dir}: {error_msg}",
-        'compiling_latex': "Compiling LaTeX files in {output_dir}...",
-        'main_latex_not_found': "Main LaTeX file not found: {main_tex_file}",
-        'latex_compile_failed': "LaTeX compilation failed on pass {pass_num}. Output:",
-        'pdflatex_not_found': "Error: pdflatex command not found. Please ensure LaTeX is installed and in your PATH.",
-        'unexpected_latex_error': "An unexpected error occurred during LaTeX compilation: {error_msg}",
-        'latex_compile_complete': "LaTeX compilation complete. Cleaning up auxiliary files...",
-        'front_matter_page_file_not_found': "Warning: file not found at {path}",
-        'error_reading_front_matter_page': "Warning: Could not read file {path}: {e}",
-        'date_format': "%B %d, %Y",
-        'months': ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
-                   'November', 'December'],
-        'fn_white_player': 'The white square denotes the player with the White pieces.',
-        'fn_black_player': 'The black square denotes the player with the Black pieces.',
-        'fn_winner': 'A star symbol appears next to the winner of the game.',
-        'fn_date': 'The date the game was played.',
-        'fn_event': 'The event or tournament name.',
-        'fn_time_control': 'The time control for the game (e.g., 60+1 means 60 seconds base time with a 1-second increment per move).',
-        'fn_notation_algebraic': 'The game moves are listed in Standard Algebraic Notation.',
-        'fn_notation_figurine': 'The game moves are listed in figurine notation, where a symbol represents each piece.',
-        'fn_analysis_summary': 'A summary of the computer analysis, including average centipawn loss (CPL) for each player. Lower CPL is better.',
-        'fn_board_diagram_all': 'Board diagrams are shown for every move pair. The board on the left shows the position after White\'s move, and the board on the right shows the position after Black\'s response. The start and end squares of each move are highlighted. A circled king is in check; a circled king with a cross is in checkmate.',
-        'fn_board_diagram_smart': 'Board diagrams are only shown for "smart" move pairs, where at least one move was interesting. The board on the left shows the position after White\'s move, and the board on the right is after Black\'s response. The start and end squares of each move are highlighted. A circled king is in check; a circled king with a cross is in checkmate.',
-        'fn_move_reminder': 'This title shows the move pair in Standard Algebraic Notation.',
-        'fn_analysis_explanation': 'Evaluation is always from White\'s perspective: a positive value indicates a White advantage, a negative value a Black advantage. The score is either a numerical value expressed in centipawns (1/100th of a pawn), or a string like MX (Mate in X moves). For example, a score of +1.50c means White is ahead by 1.5 centipawns, while -M3 means Black has a forced checkmate in 3 moves. | Loss: The centipawn loss for the move played compared to the engine\'s best move. (Good Move, Mistake, Blunder): A classification of the move based on the centipawn loss. Best: The engine\'s preferred move if it differs from the one played.',
-        'how_to_read_title': 'How to Read This Book',
-        'table_metric': 'Metric',
-        'table_white': 'White',
-        'table_black': 'Black',
-        'table_avg_cpl': 'Average CPL',
-        'table_blunders': 'Blunders',
-        'table_mistakes': 'Mistakes',
-        'table_inaccuracies': 'Inaccuracies',
-        'term_agreement': 'Game drawn by agreement',
-        'term_repetition': 'Game drawn by repetition',
-        'term_stalemate': 'Game drawn by stalemate',
-        'term_timeout_vs_insufficient': 'Game drawn by timeout vs insufficient material',
-        'term_abandoned': '{player} won - game abandoned',
-        'term_checkmate': '{player} won by checkmate',
-        'term_resignation': '{player} won by resignation',
-        'term_time': '{player} won on time',
-        'toc_title': 'Table of Contents',
-        'preface': 'Preface',
-        # --- Start of new messages for the appendix ---
-        'appendix_notation_title': 'How to Read Chess Notation',
-        'appendix_combined_subtitle': 'Standard/Figurine Algebraic Notation (SAN/FAN)',
-        'appendix_intro': 'Chess notation is a system for recording the moves of a game. The board is a grid where each square has a unique coordinate, from a1 to h8.',
-        'appendix_piece_names': 'Piece Names and Symbols',
-        'appendix_table_piece': 'Piece',
-        'appendix_table_symbol_san': 'Symbol (SAN)',
-        'appendix_table_symbol_fan': 'Symbol (FAN)',
-        'appendix_table_king': 'King',
-        'appendix_table_queen': 'Queen',
-        'appendix_table_rook': 'Rook',
-        'appendix_table_bishop': 'Bishop',
-        'appendix_table_knight': 'Knight',
-        'appendix_table_pawn': 'Pawn (letter omitted in notation)',
-        'appendix_special_moves': 'Special Moves and Symbols',
-        'appendix_capture_text': r'\textbf{x}: Indicates a capture (e.g., \texttt{Nxf3} means a Knight captures on f3).',
-        'appendix_check_text': r'\textbf{+}: Indicates a check. \textbf{\#}: Indicates checkmate.',
-        'appendix_castling_text': r'\textbf{O-O}: Kingside castling. \textbf{O-O-O}: Queenside castling.',
-        'appendix_promotion_text': r'\textbf{=Q}: Indicates a pawn promotes to a Queen (e.g., \texttt{e8=Q}).',
-        'appendix_en_passant_text': r'\textbf{e.p.}: Indicates a capture "en passant" (in passing), a special pawn capture that can occur immediately after a pawn makes a two-square advance from its starting square.',
-        'appendix_disambiguation': r'When two identical pieces can move to the same square, the starting file or rank is added to avoid ambiguity (e.g., \texttt{Nbd2} or \texttt{R1e2}).'
-    },
-    'fr': {
-        'game_event_default': 'Partie',
-        'white_player_default': 'Blanc',
-        'black_player_default': 'Noir',
-        'analysis_summary_title': 'Résumé de l\'Analyse',
-        'overall_accuracy': 'Précision Globale :',
-        'white_avg_cpl': 'CPL Moyen des Blancs :',
-        'black_avg_cpl': 'CPL Moyen des Noirs :',
-        'mistakes_blunders': 'Erreurs et Gaffes :',
-        'blunders_text': 'Gaffes',
-        'blunder_text_singular': 'Gaffe',
-        'mistakes_text': 'Erreurs',
-        'mistake_text_singular': 'Erreur',
-        'inaccuracies_text': 'Imprécisions',
-        'inaccuracy_text_singular': 'Imprécision',
-        'good_move_text': 'Bon Coup',
-        'eval_text': 'Éval. :',
-        'best_move_text': 'Meilleur :',
-        'loss_text': 'Perte :',
-        'cp_text': 'c',
-        'best_move_played_text': 'Meilleur Coup',
-        'error_starting_stockfish': "Erreur au démarrage du moteur Stockfish : {e}. Veuillez vous assurer que '{ENGINE_PATH}' est correct et que Stockfish est installé.",
-        'analysis_disabled_warning': "Les fonctionnalités d'analyse (CPL, gaffes, meilleurs coups) seront désactivées pour toutes les parties.",
-        'skipping_stockfish_analysis': "Analyse Stockfish ignorée pour la partie {game_num} en raison d'une erreur moteur.",
-        'exporting_game': "Exportation de la partie {current_game}/{total_games} vers LaTeX...",
-        'skipping_game_error': "⚠️ Partie {game_num} ignorée en raison d'une erreur lors du traitement : {error_msg}",
-        'deleting_output_dir': "Suppression du répertoire de sortie existant : {output_dir}",
-        'error_deleting_dir': "Erreur lors de la suppression du répertoire {output_dir} : {error_msg}",
-        'compiling_latex': "Compilation des fichiers LaTeX dans {output_dir}...",
-        'main_latex_not_found': "Fichier LaTeX principal introuvable : {main_tex_file}",
-        'latex_compile_failed': "Échec de la compilation LaTeX à la passe {pass_num}. Sortie :",
-        'pdflatex_not_found': "Erreur : Commande pdflatex introuvable. Veuillez vous assurer que LaTeX est installé et dans votre PATH.",
-        'unexpected_latex_error': "Une erreur inattendue est survenue lors de la compilation LaTeX : {error_msg}",
-        'latex_compile_complete': "Compilation LaTeX terminée. Nettoyage des fichiers auxiliaires...",
-        'front_matter_page_file_not_found': "Avertissement : Fichier introuvable à {path}",
-        'error_reading_front_matter_page': "Avertissement : Impossible de lire le fichier {path} : {e}",
-        'date_format': "%d %B %Y",
-        'months': ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre',
-                   'novembre', 'décembre'],
-        'fn_white_player': 'Le carré blanc indique le joueur avec les pièces blanches.',
-        'fn_black_player': 'Le carré noir indique le joueur avec les pièces noires.',
-        'fn_winner': 'Une étoile apparaît à côté du nom du vainqueur de la partie.',
-        'fn_date': 'La date à laquelle la partie a été jouée.',
-        'fn_event': 'Le nom de l\'événement ou du tournoi.',
-        'fn_time_control': 'Le contrôle de temps de la partie (par ex., 60+1 signifie 60 secondes de base avec un incrément de 1 seconde par coup).',
-        'fn_notation_algebraic': 'Les coups de la partie sont listés en notation algébrique standard.',
-        'fn_notation_figurine': 'Les coups de la partie sont listés en notation figurine, où un symbole représente chaque pièce.',
-        'fn_analysis_summary': 'Un résumé de l\'analyse par ordinateur, incluant la perte moyenne de centipions (CPL) pour chaque joueur. Un CPL plus bas est meilleur.',
-        'fn_board_diagram_all': 'Les diagrammes d\'échiquier sont affichés pour chaque paire de coups. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence. Un roi encerclé est en échec ; un roi encerclé avec une croix est en échec et mat.',
-        'fn_board_diagram_smart': 'Les diagrammes d\'échiquier ne sont affichés que pour les paires de coups "intelligentes", où au moins un coup était intéressant. L\'échiquier de gauche montre la position après le coup des Blancs, et celui de droite est après la réponse des Noirs. Les cases de départ et d\'arrivée de chaque coup sont mises en évidence. Un roi encerclé est en échec ; un roi encerclé avec une croix est en échec et mat.',
-        'fn_move_reminder': 'Ce titre rappelle la paire de coups en notation algébrique standard.',
-        'fn_analysis_explanation': 'L\'évaluation est toujours du point de vue des Blancs : une valeur positive indique un avantage pour les Blancs, une valeur négative un avantage pour les Noirs. Le score est soit une valeur numérique exprimée en centipions (1/100ème de pion), soit une chaîne comme MX (Mat en X coups). Par exemple, un score de +1.50c signifie que les Blancs ont un avantage de 1.5 centipion, tandis que -M3 signifie que les Noirs ont un mat forcé en 3 coups. | Perte : La perte en centipions pour le coup joué par rapport au meilleur coup du moteur. (Bon Coup, Erreur, Gaffe) : Une classification du coup basée sur la perte en centipions. Meilleur : Le coup préféré du moteur s\'il diffère de celui joué.',
-        'how_to_read_title': 'Comment Lire ce Livre',
-        'table_metric': 'Métrique',
-        'table_white': 'Blancs',
-        'table_black': 'Noirs',
-        'table_avg_cpl': 'CPL Moyen',
-        'table_blunders': 'Gaffes',
-        'table_mistakes': 'Erreurs',
-        'table_inaccuracies': 'Imprécisions',
-        'term_agreement': 'Partie nulle par accord mutuel',
-        'term_repetition': 'Partie nulle par répétition',
-        'term_stalemate': 'Partie nulle par pat',
-        'term_timeout_vs_insufficient': 'Partie nulle, temps écoulé contre matériel insuffisant',
-        'term_abandoned': '{player} a gagné - partie abandonnée',
-        'term_checkmate': '{player} a gagné par échec et mat',
-        'term_resignation': '{player} a gagné par abandon',
-        'term_time': '{player} a gagné au temps',
-        'toc_title': 'Table des Matières',
-        'preface': 'Préface',
-        # --- Start of new messages for the appendix ---
-        'appendix_notation_title': 'Comment Lire la Notation aux Échecs',
-        'appendix_combined_subtitle': 'Notation Algébrique Standard/Figurine (NAS/NAF)',
-        'appendix_intro': 'La notation échiquéenne est un système pour enregistrer les coups d\'une partie. L\'échiquier est une grille où chaque case a une coordonnée unique, de a1 à h8.',
-        'appendix_piece_names': 'Noms et Symboles des Pièces',
-        'appendix_table_piece': 'Pièce',
-        'appendix_table_symbol_san': 'Symbole (NAS)',
-        'appendix_table_symbol_fan': 'Symbole (NAF)',
-        'appendix_table_king': 'Roi',
-        'appendix_table_queen': 'Dame',
-        'appendix_table_rook': 'Tour',
-        'appendix_table_bishop': 'Fou',
-        'appendix_table_knight': 'Cavalier',
-        'appendix_table_pawn': 'Pion (lettre omise dans la notation)',
-        'appendix_special_moves': 'Coups et Symboles Spéciaux',
-        'appendix_capture_text': r"\textbf{x} : Indique une capture (par ex., \texttt{Cxf3} signifie qu'un Cavalier capture en f3).",
-        'appendix_check_text': r'\textbf{+} : Indique un échec. \textbf{\#} : Indique un échec et mat.',
-        'appendix_castling_text': r'\textbf{O-O} : Petit roque. \textbf{O-O-O} : Grand roque.',
-        'appendix_promotion_text': r"\textbf{=D} : Indique qu'un pion est promu en Dame (par ex., \texttt{e8=D}).",
-        'appendix_en_passant_text': r"\textbf{e.p.} : Indique une capture « en passant », une capture spéciale du pion qui ne peut se produire qu'immédiatement après qu'un pion a avancé de deux cases depuis sa case de départ.",
-        'appendix_disambiguation': r'Lorsque deux pièces identiques peuvent se déplacer sur la même case, la colonne ou la rangée de départ est ajoutée pour éviter toute ambiguïté (par ex., \texttt{Cbd2} ou \texttt{T1e2}).'
-    }
-}
-
 OPERA_GAME_PGN = """
 [Event "A night at the opera"]
 [Site "Paris FRA"]
@@ -320,6 +134,20 @@ OPERA_GAME_PGN = """
 13.Rxd7 Rxd7 14.Rd1 Qe6 15.Bxd7+ Nxd7 16.Qb8+ Nxb8 17.Rd8# 1-0
 """
 
+# Global variable to hold the loaded messages
+MESSAGES = {}
+
+def load_messages(lang='en'):
+    """Loads the localized messages from the corresponding JSON file."""
+    global MESSAGES
+    try:
+        # Assuming the script is run from the root directory where 'locales' is located
+        file_path = Path(f"locales/{lang}.json")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            MESSAGES = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error: Could not load the language file for '{lang}'. Please check the 'locales' directory. Details: {e}", file=sys.stderr)
+        sys.exit(1)
 
 def escape_latex_special_chars(text):
     """
@@ -354,18 +182,18 @@ def get_eval_string(score, lang='en'):
         return f"{sign}M{abs(mate_value)}"
 
     # The centipawn formatting already correctly handles the sign
-    return f"{white_pov_score.cp / 100.0:+.2f}{MESSAGES[lang]['cp_text']}"
+    return f"{white_pov_score.cp / 100.0:+.2f}{MESSAGES['cp_text']}"
 
 
 def classify_move_loss(cpl, lang='en'):
     """Classifies a move based on Centipawn Loss (CPL)."""
     if cpl >= 200:
-        return f"\\textbf{{{MESSAGES[lang]['blunder_text_singular']}}}"
+        return f"\\textbf{{{MESSAGES['blunder_text_singular']}}}"
     elif cpl >= 100:
-        return f"\\textbf{{{MESSAGES[lang]['mistake_text_singular']}}}"
+        return f"\\textbf{{{MESSAGES['mistake_text_singular']}}}"
     elif cpl >= 50:
-        return MESSAGES[lang]['inaccuracy_text_singular']
-    return MESSAGES[lang]['good_move_text']
+        return MESSAGES['inaccuracy_text_singular']
+    return MESSAGES['good_move_text']
 
 
 def analyze_game_with_stockfish(game, engine):
@@ -418,14 +246,14 @@ def format_pgn_date(pgn_date, lang='en'):
     """Formats a PGN date string (YYYY.MM.DD) into a localized format."""
     try:
         date_obj = datetime.strptime(pgn_date, "%Y.%m.%d").date()
-        if 'months' in MESSAGES[lang]:
-            month_name = MESSAGES[lang]['months'][date_obj.month - 1]
+        if 'months' in MESSAGES:
+            month_name = MESSAGES['months'][date_obj.month - 1]
             if lang == 'fr':
                 return f"{date_obj.day} {month_name} {date_obj.year}"
             else:
                 return f"{month_name} {date_obj.day}, {date_obj.year}"
         else:
-            return date_obj.strftime(MESSAGES[lang]["date_format"])
+            return date_obj.strftime(MESSAGES["date_format"])
     except (ValueError, KeyError):
         return pgn_date
 
@@ -438,7 +266,7 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
     footnote = ""
     if annotated:
         key = 'fn_notation_figurine' if notation_type == 'figurine' else 'fn_notation_algebraic'
-        footnote = f"\\footnote{{{MESSAGES[lang][key]}}}"
+        footnote = f"\\footnote{{{MESSAGES[key]}}}"
 
     latex_lines = [f"\\subsection*{{{''}}}{footnote}"]
 
@@ -554,9 +382,9 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
     The section title is made invisible but is added to the TOC and page headers.
     """
     latex_lines = []
-    header = game.headers.get("Event", MESSAGES[lang]['game_event_default'])
-    white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
-    black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
+    header = game.headers.get("Event", MESSAGES['game_event_default'])
+    white = game.headers.get("White", MESSAGES['white_player_default'])
+    black = game.headers.get("Black", MESSAGES['black_player_default'])
     result = game.headers.get("Result", "*")
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
@@ -573,7 +401,7 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     """
     Generates the LaTeX for the analysis summary section, formatted as a table.
     """
-    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
+    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
     if not analysis_data:
         return []
     total_moves_analyzed = len(analysis_data)
@@ -591,15 +419,15 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     black_inaccuracies = sum(1 for d in analysis_data if not d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
     latex_lines = [f"\\subsection*{{{''}}}{fn('fn_analysis_summary')}"]
     header_metric = ""
-    header_white = f"\\textbf{{{MESSAGES[lang]['table_white']}}}"
-    header_black = f"\\textbf{{{MESSAGES[lang]['table_black']}}}"
-    avg_cpl_label = MESSAGES[lang]['table_avg_cpl']
+    header_white = f"\\textbf{{{MESSAGES['table_white']}}}"
+    header_black = f"\\textbf{{{MESSAGES['table_black']}}}"
+    avg_cpl_label = MESSAGES['table_avg_cpl']
     latex_lines.append(r"\begin{tabularx}{\linewidth}{l c c}")
     latex_lines.append(f"{header_metric} & {header_white} & {header_black} \\\\ \\cline{{1-1}} \\cline{{2-3}}")
     latex_lines.append(f"{avg_cpl_label} & {white_avg_cpl:.2f} & {black_avg_cpl:.2f} \\\\")
-    latex_lines.append(f"{MESSAGES[lang]['table_blunders']} & {white_blunders} & {black_blunders} \\\\")
-    latex_lines.append(f"{MESSAGES[lang]['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
-    latex_lines.append(f"{MESSAGES[lang]['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
+    latex_lines.append(f"{MESSAGES['table_blunders']} & {white_blunders} & {black_blunders} \\\\")
+    latex_lines.append(f"{MESSAGES['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
+    latex_lines.append(f"{MESSAGES['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
     latex_lines.append(r"\end{tabularx}")
     return latex_lines
 
@@ -608,7 +436,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
     """
     Generates the LaTeX for move-by-move board displays, with correctly placed footnotes and check/checkmate markers.
     """
-    fn = lambda key: f"\\protect\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
+    fn = lambda key: f"\\protect\\footnote{{{MESSAGES[key]}}}" if annotated else ""
     latex_lines = []
     if not analysis_data:
         return latex_lines
@@ -699,12 +527,12 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         if i == 0 and annotated:
             board_footnote_mark = "\\footnotemark "
             key = 'fn_board_diagram_smart' if board_scope == 'smart' else 'fn_board_diagram_all'
-            deferred_footnotetexts.append(f"\\footnotetext{{{MESSAGES[lang][key]}}}")
+            deferred_footnotetexts.append(f"\\footnotetext{{{MESSAGES[key]}}}")
 
         analysis_footnote_mark = ""
         if i == 0 and annotated and (white_analysis or black_analysis):
             analysis_footnote_mark = "\\footnotemark "
-            deferred_footnotetexts.append(f"\\footnotetext{{{MESSAGES[lang]['fn_analysis_explanation']}}}")
+            deferred_footnotetexts.append(f"\\footnotetext{{{MESSAGES['fn_analysis_explanation']}}}")
 
         def format_analysis(analysis, node):
             if not analysis:
@@ -716,19 +544,19 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
                 comment_footnote_mark = "\\footnotemark "
                 deferred_footnotetexts.append(f"\\footnotetext{{{escape_latex_special_chars(comment)}}}")
 
-            eval_str = f"\\textit{{{MESSAGES[lang]['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
+            eval_str = f"\\textit{{{MESSAGES['eval_text']} {get_eval_string(analysis['eval_after_played_move'], lang)}}}"
 
             if analysis['played_move'] != analysis['engine_best_move_from_pos'] and not analysis[
                 'engine_eval_before_played_move'].is_mate():
-                loss_str = f"\\textit{{{MESSAGES[lang]['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES[lang]['cp_text']}"
+                loss_str = f"\\textit{{{MESSAGES['loss_text']} {analysis['cpl_for_move']}}}{MESSAGES['cp_text']}"
                 classification = classify_move_loss(analysis['cpl_for_move'], lang)
-                best_move_str = f"\\textit{{{MESSAGES[lang]['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
+                best_move_str = f"\\textit{{{MESSAGES['best_move_text']} {escape_latex_special_chars(analysis['engine_best_move_from_pos'].uci())}}}"
                 separator = "\\text{\\textbar}"
                 line1 = f"{comment_footnote_mark}{eval_str} {separator} {loss_str}"
                 line2 = f"{classification} ({best_move_str})"
                 return line1, line2
             else:
-                line1 = f"{comment_footnote_mark}{eval_str} (\\textit{{{MESSAGES[lang]['best_move_played_text']}}})"
+                line1 = f"{comment_footnote_mark}{eval_str} (\\textit{{{MESSAGES['best_move_played_text']}}})"
                 return line1, "\\strut"
 
         white_line1, white_line2 = format_analysis(white_analysis, white_node)
@@ -766,10 +594,10 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     """
     Generates the LaTeX for the game's summary box (players, date, event).
     """
-    fn = lambda key: f"\\footnote{{{MESSAGES[lang][key]}}}" if annotated else ""
+    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
     latex_lines = []
-    white = game.headers.get("White", MESSAGES[lang]['white_player_default'])
-    black = game.headers.get("Black", MESSAGES[lang]['black_player_default'])
+    white = game.headers.get("White", MESSAGES['white_player_default'])
+    black = game.headers.get("Black", MESSAGES['black_player_default'])
     date = game.headers.get("Date", "Unknown Date")
     event = game.headers.get("Event", "Casual Game")
     result = game.headers.get("Result", "*")
@@ -861,7 +689,7 @@ def _generate_termination_latex(game, lang='en'):
         return [f"{prefix}\\par\\textbf{{{escape_latex_special_chars(termination)}}}"]
 
     # Get the translated message
-    message_template = MESSAGES[lang].get(reason_key, "")
+    message_template = MESSAGES.get(reason_key, "")
 
     # Substitute the player's name into the translated string
     # and escape any special LaTeX characters in the name.
@@ -906,7 +734,7 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
     import io
     lang = args.language
     print("Generating 'How to Read This Book' section...")
-    title = MESSAGES[lang]['how_to_read_title']
+    title = MESSAGES['how_to_read_title']
 
     tex_master.append(r"\cleardoublepage")
     tex_master.append(f"\\addcontentsline{{toc}}{{section}}{{{title}}}")
@@ -932,11 +760,11 @@ def delete_output_directory(output_dir_path, lang='en'):
     """Deletes the output directory if it exists."""
     output_dir = Path(output_dir_path)
     if output_dir.exists() and output_dir.is_dir():
-        print(MESSAGES[lang]['deleting_output_dir'].format(output_dir=output_dir))
+        print(MESSAGES['deleting_output_dir'].format(output_dir=output_dir))
         try:
             shutil.rmtree(output_dir)
         except OSError as e:
-            print(MESSAGES[lang]['error_deleting_dir'].format(output_dir=output_dir, error_msg=e), file=sys.stderr)
+            print(MESSAGES['error_deleting_dir'].format(output_dir=output_dir, error_msg=e), file=sys.stderr)
             sys.exit(1)
 
 
@@ -945,9 +773,9 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
     output_dir = Path(output_dir_path)
     main_tex_path = output_dir / main_tex_file
     if not main_tex_path.exists():
-        print(MESSAGES[lang]['main_latex_not_found'].format(main_tex_file=main_tex_path), file=sys.stderr)
+        print(MESSAGES['main_latex_not_found'].format(main_tex_file=main_tex_path), file=sys.stderr)
         return
-    print(MESSAGES[lang]['compiling_latex'].format(output_dir=output_dir))
+    print(MESSAGES['compiling_latex'].format(output_dir=output_dir))
     for i in range(LATEX_COMPILE_PASSES):
         try:
             result = subprocess.run(
@@ -958,16 +786,16 @@ def compile_latex_to_pdf(output_dir_path, main_tex_file="chess_book.tex", lang='
                 check=False
             )
             if result.returncode != 0:
-                print(MESSAGES[lang]['latex_compile_failed'].format(pass_num=i + 1), file=sys.stderr)
+                print(MESSAGES['latex_compile_failed'].format(pass_num=i + 1), file=sys.stderr)
                 print(result.stdout, file=sys.stderr)
                 print(result.stderr, file=sys.stderr)
         except FileNotFoundError:
-            print(MESSAGES[lang]['pdflatex_not_found'], file=sys.stderr)
+            print(MESSAGES['pdflatex_not_found'], file=sys.stderr)
             sys.exit(1)
         except Exception as e:
-            print(MESSAGES[lang]['unexpected_latex_error'].format(error_msg=e), file=sys.stderr)
+            print(MESSAGES['unexpected_latex_error'].format(error_msg=e), file=sys.stderr)
             sys.exit(1)
-    print(MESSAGES[lang]['latex_compile_complete'])
+    print(MESSAGES['latex_compile_complete'])
     aux_extensions = ['.aux', '.log', '.lof', '.toc', '.out', '.fls', '.fdb_latexmk', '.synctex.gz']
     for f in output_dir.iterdir():
         if f.suffix in aux_extensions or (f.is_file() and (
@@ -1005,9 +833,9 @@ def _add_front_matter_page_to_latex(tex_master_list, file_path, lang='en'):
                 )
                 tex_master_list.append(formatted_content)
             except Exception as e:
-                print(MESSAGES[lang]['error_reading_front_matter_page'].format(path=content_path, e=e), file=sys.stderr)
+                print(MESSAGES['error_reading_front_matter_page'].format(path=content_path, e=e), file=sys.stderr)
         else:
-            print(MESSAGES[lang]['front_matter_page_file_not_found'].format(path=content_path), file=sys.stderr)
+            print(MESSAGES['front_matter_page_file_not_found'].format(path=content_path), file=sys.stderr)
 
 
 def _find_book_part_file(directory, basename):
@@ -1048,7 +876,7 @@ def _format_dedication_epigraph_txt(content):
 
 def _format_preface_txt(content, lang):
     """Formats raw text for a preface page (justified with a title)."""
-    title = MESSAGES[lang]['preface']
+    title = MESSAGES['preface']
 
     # Process text to respect paragraph breaks
     paragraphs = content.strip().split('\n\n')
@@ -1114,7 +942,7 @@ def _generate_notation_appendix(notation_type, lang='en'):
     """
     Generates a unified LaTeX appendix explaining both Standard and Figurine chess notation.
     """
-    msg = MESSAGES[lang]
+    msg = MESSAGES
     title = msg['appendix_notation_title']
     intro = msg['appendix_intro']
     special_moves_title = msg['appendix_special_moves']
@@ -1244,7 +1072,7 @@ def generate_chess_book(args):
 
     # --- Assemble the Book ---
     tex_master = []
-    tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES[args.language]['toc_title']}}}")
+    tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES['toc_title']}}}")
     tex_master.append(get_latex_header_part1(settings))
 
     # Define book metadata commands for use in the document
@@ -1293,25 +1121,25 @@ def generate_chess_book(args):
         engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
         engine.configure({"Threads": 2, "Hash": 128})
     except Exception as e:
-        print(MESSAGES[args.language]['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
-        print(MESSAGES[args.language]['analysis_disabled_warning'])
+        print(MESSAGES['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
+        print(MESSAGES['analysis_disabled_warning'])
     if args.how_to_read:
         generate_how_to_read_section(tex_master, args, output_dir, engine)
     for idx, game in enumerate(games):
         try:
-            print(MESSAGES[args.language]['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
+            print(MESSAGES['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
             analysis_data = []
             if engine:
                 analysis_data = analyze_game_with_stockfish(game, engine)
             else:
-                print(MESSAGES[args.language]['skipping_stockfish_analysis'].format(game_num=idx + 1))
+                print(MESSAGES['skipping_stockfish_analysis'].format(game_num=idx + 1))
 
             export_game_to_latex(
                 game, idx + 1, output_dir, analysis_data, args
             )
             tex_master.append(f"\\input{{game_{idx + 1:03}.tex}}")
         except Exception as e:
-            print(MESSAGES[args.language]['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
+            print(MESSAGES['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
 
     tex_master.append(r"\cleardoublepage")
 
@@ -1362,6 +1190,10 @@ if __name__ == "__main__":
     parser.add_argument("--paper_size", type=str, choices=['a3', 'a4', 'a5'], default='a4', help="Paper size for the output PDF (default: 'a4').")
     parser.add_argument("--how_to_read", action="store_true", help="Add 'How to Read This Book' section.")
     args = parser.parse_args()
+
+    # Load the messages right after parsing arguments
+    load_messages(args.language)
+
     delete_output_directory(args.output_dir, args.language)
     generate_chess_book(args)
     compile_latex_to_pdf(args.output_dir, lang=args.language)
