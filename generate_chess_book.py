@@ -187,12 +187,12 @@ MESSAGES = {
         'preface': 'Preface',
         # --- Start of new messages for the appendix ---
         'appendix_notation_title': 'How to Read Chess Notation',
-        'appendix_algebraic_subtitle': 'Standard Algebraic Notation (SAN)',
-        'appendix_figurine_subtitle': 'Figurine Algebraic Notation (FAN)',
+        'appendix_combined_subtitle': 'Standard/Figurine Algebraic Notation (SAN/FAN)',
         'appendix_intro': 'Chess notation is a system for recording the moves of a game. The board is a grid where each square has a unique coordinate, from a1 to h8.',
         'appendix_piece_names': 'Piece Names and Symbols',
         'appendix_table_piece': 'Piece',
-        'appendix_table_symbol': 'Symbol',
+        'appendix_table_symbol_san': 'Symbol (SAN)',
+        'appendix_table_symbol_fan': 'Symbol (FAN)',
         'appendix_table_king': 'King',
         'appendix_table_queen': 'Queen',
         'appendix_table_rook': 'Rook',
@@ -279,12 +279,12 @@ MESSAGES = {
         'preface': 'Préface',
         # --- Start of new messages for the appendix ---
         'appendix_notation_title': 'Comment Lire la Notation aux Échecs',
-        'appendix_algebraic_subtitle': 'Notation Algébrique Standard (SAN)',
-        'appendix_figurine_subtitle': 'Notation Algébrique Figurative (FAN)',
+        'appendix_combined_subtitle': 'Notation Algébrique Standard/Figurine (NAS/NAF)',
         'appendix_intro': 'La notation échiquéenne est un système pour enregistrer les coups d\'une partie. L\'échiquier est une grille où chaque case a une coordonnée unique, de a1 à h8.',
         'appendix_piece_names': 'Noms et Symboles des Pièces',
         'appendix_table_piece': 'Pièce',
-        'appendix_table_symbol': 'Symbole',
+        'appendix_table_symbol_san': 'Symbole (NAS)',
+        'appendix_table_symbol_fan': 'Symbole (NAF)',
         'appendix_table_king': 'Roi',
         'appendix_table_queen': 'Dame',
         'appendix_table_rook': 'Tour',
@@ -1112,42 +1112,28 @@ def _generate_simple_title_page(title, subtitle, author):
 
 def _generate_notation_appendix(notation_type, lang='en'):
     """
-    Generates a LaTeX appendix explaining how to read chess notation.
+    Generates a unified LaTeX appendix explaining both Standard and Figurine chess notation.
     """
     msg = MESSAGES[lang]
     title = msg['appendix_notation_title']
-
-    # Common parts of the explanation
     intro = msg['appendix_intro']
     special_moves_title = msg['appendix_special_moves']
 
-    # Build the piece table and subtitle based on notation type
-    if notation_type == 'figurine':
-        subtitle = msg['appendix_figurine_subtitle']
-        piece_table = dedent(fr'''
-            \begin{{tabular}}{{l c}}
-            \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol']}}} \\ \hline
-            {msg['appendix_table_king']} & {_get_chess_figurine('K')} / {_get_chess_figurine('k')} \\
-            {msg['appendix_table_queen']} & {_get_chess_figurine('Q')} / {_get_chess_figurine('q')} \\
-            {msg['appendix_table_rook']} & {_get_chess_figurine('R')} / {_get_chess_figurine('r')} \\
-            {msg['appendix_table_bishop']} & {_get_chess_figurine('B')} / {_get_chess_figurine('b')} \\
-            {msg['appendix_table_knight']} & {_get_chess_figurine('N')} / {_get_chess_figurine('n')} \\
-            \multicolumn{{2}}{{l}}{{{msg['appendix_table_pawn']}}} \\
-            \end{{tabular}}
-        ''')
-    else:  # algebraic
-        subtitle = msg['appendix_algebraic_subtitle']
-        piece_table = dedent(fr'''
-            \begin{{tabular}}{{l c}}
-            \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol']}}} \\ \hline
-            {msg['appendix_table_king']} & K \\
-            {msg['appendix_table_queen']} & Q \\
-            {msg['appendix_table_rook']} & R \\
-            {msg['appendix_table_bishop']} & B \\
-            {msg['appendix_table_knight']} & N \\
-            \multicolumn{{2}}{{l}}{{{msg['appendix_table_pawn']}}} \\
-            \end{{tabular}}
-        ''')
+    # Use the new combined subtitle for a unified section
+    subtitle = msg['appendix_combined_subtitle']
+
+    # Build a single 3-column table for both notation types
+    piece_table = dedent(fr'''
+        \begin{{tabular}}{{l c c}}
+        \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol_san']}}} & \textbf{{{msg['appendix_table_symbol_fan']}}} \\ \hline
+        {msg['appendix_table_king']} & K & {_get_chess_figurine('K', inline=False)} / {_get_chess_figurine('k', inline=False)} \\
+        {msg['appendix_table_queen']} & Q & {_get_chess_figurine('Q', inline=False)} / {_get_chess_figurine('q', inline=False)} \\
+        {msg['appendix_table_rook']} & R & {_get_chess_figurine('R', inline=False)} / {_get_chess_figurine('r', inline=False)} \\
+        {msg['appendix_table_bishop']} & B & {_get_chess_figurine('B', inline=False)} / {_get_chess_figurine('b', inline=False)} \\
+        {msg['appendix_table_knight']} & N & {_get_chess_figurine('N', inline=False)} / {_get_chess_figurine('n', inline=False)} \\
+        \multicolumn{{3}}{{l}}{{{msg['appendix_table_pawn']}}} \\
+        \end{{tabular}}
+    ''')
 
     # Assemble the final LaTeX string for the appendix
     return dedent(fr'''
