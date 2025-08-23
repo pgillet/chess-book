@@ -1,0 +1,19 @@
+{
+  "A00": { "en": "Anderssen's Opening", "fr": "Ouverture Anderssen" },
+  "A40": { "en": "Queen's Pawn Game", "fr": "Jeu du pion dame" },
+  "A45": { "en": "Trompowsky Attack", "fr": "Attaque Trompowsky" },
+  "B01": { "en": "Scandinavian Defense", "fr": "Défense scandinave" },
+  "B20": { "en": "Sicilian Defense", "fr": "Défense sicilienne" },
+  "B22": { "en": "Sicilian Defense, Alapin Variation", "fr": "Défense sicilienne, Variante Alapine" },
+  "C00": { "en": "French Defense", "fr": "Défense française" },
+  "C20": { "en": "King's Pawn Game", "fr": "Jeu du pion roi" },
+  "C41": { "en": "Philidor Defense", "fr": "Défense Philidor" },
+  "C50": { "en": "Italian Game", "fr": "Partie italienne" },
+  "C60": { "en": "Ruy Lopez Opening", "fr": "Partie espagnole" },
+  "D00": { "en": "Queen's Pawn Game", "fr": "Jeu du pion dame" },
+  "D06": { "en": "Queen's Gambit", "fr": "Gambit dame" },
+  "D20": { "en": "Queen's Gambit Accepted", "fr": "Gambit dame accepté" },
+  "D30": { "en": "Queen's Gambit Declined", "fr": "Gambit dame refusé" },
+  "E00": { "en": "Catalan Opening", "fr": "Ouverture catalane" },
+  "E60": { "en": "King's Indian Defense", "fr": "Défense est-indienne" }
+}

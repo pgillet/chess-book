@@ -150,6 +150,17 @@ def load_messages(lang='en'):
         sys.exit(1)
 
 
+def load_eco_data():
+    """Loads the ECO opening names from the JSON data file."""
+    global ECO_OPENINGS
+    try:
+        file_path = Path("locales/eco_openings.json")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            ECO_OPENINGS = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Warning: Could not load ECO openings data file. Opening names will not be localized. Details: {e}", file=sys.stderr)
+
+
 def translate_san_move(san_move):
     """
     Translates the English piece letter in a SAN move to the localized version.
@@ -641,6 +652,14 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     date_escaped = escape_latex_special_chars(formatted_date)
     event_escaped = escape_latex_special_chars(event)
     tc_escaped = escape_latex_special_chars(f"({standard_tc})")
+
+    # --- Localized Opening Name Logic ---
+    eco_code = game.headers.get("ECO")
+    opening_name = ""
+    if eco_code and eco_code in ECO_OPENINGS:
+        # Look up the name in the desired language from our data
+        opening_name = ECO_OPENINGS[eco_code].get(lang)
+
     winner_symbol = r" $\star$"
     if annotated:
         winner_symbol += fn('fn_winner')
@@ -653,6 +672,14 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     black_line = fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}}{fn('fn_black_player')} \hfill \textit{{{event_escaped}}}{fn('fn_event')} {tc_escaped}{fn('fn_time_control')}"
     latex_lines.append(white_line)
     latex_lines.append(black_line)
+
+    # Add the localized opening name line if it was found
+    if opening_name:
+        opening_escaped = escape_latex_special_chars(opening_name)
+        eco_code_str = f"({eco_code})"
+        opening_line = fr"\\ \noindent \textit{{{MESSAGES['opening_name_label']}}} {opening_escaped} {eco_code_str}"
+        latex_lines.append(opening_line)
+
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
     return latex_lines
 
@@ -1225,6 +1252,7 @@ if __name__ == "__main__":
 
     # Load the messages right after parsing arguments
     load_messages(args.language)
+    load_eco_data()
 
     delete_output_directory(args.output_dir, args.language)
     generate_chess_book(args)
