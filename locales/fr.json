@@ -1,4 +1,11 @@
 {
+  "piece_letters": {
+    "K": "R",
+    "Q": "D",
+    "R": "T",
+    "B": "F",
+    "N": "C"
+  },
   "game_event_default": "Partie",
   "white_player_default": "Blanc",
   "black_player_default": "Noir",

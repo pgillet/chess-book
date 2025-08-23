@@ -149,6 +149,21 @@ def load_messages(lang='en'):
         print(f"Error: Could not load the language file for '{lang}'. Please check the 'locales' directory. Details: {e}", file=sys.stderr)
         sys.exit(1)
 
+
+def translate_san_move(san_move):
+    """
+    Translates the English piece letter in a SAN move to the localized version.
+    """
+    # If the move doesn't start with a piece, it's a pawn move or castling, no change needed.
+    if not san_move or san_move[0] not in "KQRBN":
+        return san_move
+
+    english_piece = san_move[0]
+    localized_piece = MESSAGES['piece_letters'].get(english_piece, english_piece)
+
+    return localized_piece + san_move[1:]
+
+
 def escape_latex_special_chars(text):
     """
     Escapes common LaTeX special characters in a string.
@@ -303,6 +318,10 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
 
             def get_formatted_san(san, move):
                 if not san: return ""
+                # Apply translation for algebraic notation
+                if notation_type == "algebraic":
+                    san = translate_san_move(san)
+
                 if notation_type == "figurine":
                     piece = temp_board.piece_at(move.from_square)
                     if piece and piece.piece_type != chess.PAWN:
@@ -357,6 +376,10 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
             if (i + 1) < len(moves):
                 black_move = moves[i + 1]
                 black_san = board.san(black_move)
+                # Apply translation for algebraic notation
+                if notation_type == "algebraic":
+                    black_san = translate_san_move(black_san)
+
                 if notation_type == "figurine":
                     moving_piece = board.piece_at(black_move.from_square)
                     if moving_piece and moving_piece.piece_type != chess.PAWN:
@@ -514,9 +537,18 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
         move_pairs_to_display = all_calculated_move_pairs[5:6]
 
     board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
-    for i, (move_text, fen1, marked_sq1, king_mark_opts1, white_analysis, fen2, marked_sq2, king_mark_opts2,
+    for i, (move_text_raw, fen1, marked_sq1, king_mark_opts1, white_analysis, fen2, marked_sq2, king_mark_opts2,
             black_analysis, _, white_node,
             black_node) in enumerate(move_pairs_to_display):
+
+        # Split the raw SAN move text (e.g., "1. Nf3 Nc6") into parts for translation
+        move_parts = move_text_raw.split()
+        if len(move_parts) > 1:
+            move_parts[1] = translate_san_move(move_parts[1])  # Translate White's move
+        if len(move_parts) > 2:
+            move_parts[2] = translate_san_move(move_parts[2])  # Translate Black's move
+
+        move_text = " ".join(move_parts)
 
         move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
         latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
@@ -954,11 +986,11 @@ def _generate_notation_appendix(notation_type, lang='en'):
     piece_table = dedent(fr'''
         \begin{{tabular}}{{l c c}}
         \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol_san']}}} & \textbf{{{msg['appendix_table_symbol_fan']}}} \\ \hline
-        {msg['appendix_table_king']} & K & {_get_chess_figurine('K')} / {_get_chess_figurine('k')} \\
-        {msg['appendix_table_queen']} & Q & {_get_chess_figurine('Q')} / {_get_chess_figurine('q')} \\
-        {msg['appendix_table_rook']} & R & {_get_chess_figurine('R')} / {_get_chess_figurine('r')} \\
-        {msg['appendix_table_bishop']} & B & {_get_chess_figurine('B')} / {_get_chess_figurine('b')} \\
-        {msg['appendix_table_knight']} & N & {_get_chess_figurine('N')} / {_get_chess_figurine('n')} \\
+        {msg['appendix_table_king']} & {MESSAGES['piece_letters'].get('K', 'K')} & {_get_chess_figurine('K')} / {_get_chess_figurine('k')} \\
+        {msg['appendix_table_queen']} & {MESSAGES['piece_letters'].get('Q', 'Q')} & {_get_chess_figurine('Q')} / {_get_chess_figurine('q')} \\
+        {msg['appendix_table_rook']} & {MESSAGES['piece_letters'].get('R', 'R')} & {_get_chess_figurine('R')} / {_get_chess_figurine('r')} \\
+        {msg['appendix_table_bishop']} & {MESSAGES['piece_letters'].get('B', 'B')} & {_get_chess_figurine('B')} / {_get_chess_figurine('b')} \\
+        {msg['appendix_table_knight']} & {MESSAGES['piece_letters'].get('N', 'N')} & {_get_chess_figurine('N')} / {_get_chess_figurine('n')} \\
         \multicolumn{{3}}{{l}}{{{msg['appendix_table_pawn']}}} \\
         \end{{tabular}}
     ''')
