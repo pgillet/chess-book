@@ -150,29 +150,36 @@ def load_messages(lang='en'):
         sys.exit(1)
 
 
-def load_eco_data():
-    """Loads the ECO opening names from the JSON data file."""
-    global ECO_OPENINGS
-    try:
-        file_path = Path("locales/eco_openings.json")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            ECO_OPENINGS = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Warning: Could not load ECO openings data file. Opening names will not be localized. Details: {e}", file=sys.stderr)
-
-
 def translate_san_move(san_move):
     """
-    Translates the English piece letter in a SAN move to the localized version.
+    Translates English piece letters in SAN to a localized version,
+    correctly handling all promotions, checks, and checkmates.
     """
-    # If the move doesn't start with a piece, it's a pawn move or castling, no change needed.
-    if not san_move or san_move[0] not in "KQRBN":
-        return san_move
+    if not san_move:
+        return ""
 
-    english_piece = san_move[0]
-    localized_piece = MESSAGES['piece_letters'].get(english_piece, english_piece)
+    # 1. Check for promotion (e.g., "e8=Q", "fxg1=N#")
+    if "=" in san_move:
+        base_move, promotion_part = san_move.split('=', 1)
+        # The piece is the first character of the part after '='
+        promotion_piece = promotion_part[0]
 
-    return localized_piece + san_move[1:]
+        if promotion_piece in MESSAGES['piece_letters']:
+            localized_piece = MESSAGES['piece_letters'][promotion_piece]
+            # Re-add any trailing characters like '+' or '#'
+            trailing_chars = promotion_part[1:]
+            return f"{base_move}={localized_piece}{trailing_chars}"
+        else:
+            return san_move  # Fallback for safety
+
+    # 2. Handle regular piece moves (e.g., "Nf3", "Rxe5+")
+    if san_move[0] in MESSAGES['piece_letters']:
+        english_piece = san_move[0]
+        localized_piece = MESSAGES['piece_letters'][english_piece]
+        return localized_piece + san_move[1:]
+
+    # 3. Handle pawn moves and castling
+    return san_move
 
 
 def escape_latex_special_chars(text):
@@ -334,12 +341,17 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                     san = translate_san_move(san)
 
                 if notation_type == "figurine":
+                    # For promotions, use the translated algebraic notation as per convention.
+                    if move.promotion:
+                        return escape_latex_special_chars(translate_san_move(san))
+
+                    # For all other moves, use the standard figurine logic.
                     piece = temp_board.piece_at(move.from_square)
                     if piece and piece.piece_type != chess.PAWN:
                         figurine_cmd = _get_chess_figurine(piece.symbol())
-                        # For figurines, we only take the part of the SAN after the piece letter
                         san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
                         return figurine_cmd + escape_latex_special_chars(san_suffix)
+
                 return escape_latex_special_chars(san)
 
             white_str = get_formatted_san(white_san, white_move)
@@ -370,17 +382,18 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
             white_san = board.san(white_move)
             white_move_str_latex = ""
             if notation_type == "figurine":
-                moving_piece = board.piece_at(white_move.from_square)
-                if moving_piece and moving_piece.piece_type != chess.PAWN:
-                    piece_symbol = moving_piece.symbol()
-                    figurine_cmd = _get_chess_figurine(piece_symbol)
-                    # For figurines, we only take the part of the SAN after the piece letter
-                    san_suffix = white_san[1:] if white_san and white_san[0].upper() in 'NBRQK' else white_san
-                    white_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
+                if white_move.promotion:
+                    white_move_str_latex = escape_latex_special_chars(translate_san_move(white_san))
                 else:
-                    white_move_str_latex = escape_latex_special_chars(white_san)
+                    moving_piece = board.piece_at(white_move.from_square)
+                    if moving_piece and moving_piece.piece_type != chess.PAWN:
+                        figurine_cmd = _get_chess_figurine(moving_piece.symbol())
+                        san_suffix = white_san[1:] if white_san and white_san[0].upper() in 'NBRQK' else white_san
+                        white_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
+                    else:
+                        white_move_str_latex = escape_latex_special_chars(white_san)
             else:
-                white_move_str_latex = escape_latex_special_chars(white_san)
+                white_move_str_latex = escape_latex_special_chars(translate_san_move(white_san))
             board.push(white_move)
 
             black_move_str_latex = ""
@@ -392,17 +405,18 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                     black_san = translate_san_move(black_san)
 
                 if notation_type == "figurine":
-                    moving_piece = board.piece_at(black_move.from_square)
-                    if moving_piece and moving_piece.piece_type != chess.PAWN:
-                        piece_symbol = moving_piece.symbol()
-                        figurine_cmd = _get_chess_figurine(piece_symbol)
-                        # For figurines, we only take the part of the SAN after the piece letter
-                        san_suffix = black_san[1:] if black_san and black_san[0].upper() in 'NBRQK' else black_san
-                        black_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
+                    if black_move.promotion:
+                        black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
                     else:
-                        black_move_str_latex = escape_latex_special_chars(black_san)
+                        moving_piece = board.piece_at(black_move.from_square)
+                        if moving_piece and moving_piece.piece_type != chess.PAWN:
+                            figurine_cmd = _get_chess_figurine(moving_piece.symbol())
+                            san_suffix = black_san[1:] if black_san and black_san[0].upper() in 'NBRQK' else black_san
+                            black_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
+                        else:
+                            black_move_str_latex = escape_latex_special_chars(black_san)
                 else:
-                    black_move_str_latex = escape_latex_special_chars(black_san)
+                    black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
                 board.push(black_move)
             latex_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
         latex_lines.append("\\end{tabularx}")
@@ -652,14 +666,6 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     date_escaped = escape_latex_special_chars(formatted_date)
     event_escaped = escape_latex_special_chars(event)
     tc_escaped = escape_latex_special_chars(f"({standard_tc})")
-
-    # --- Localized Opening Name Logic ---
-    eco_code = game.headers.get("ECO")
-    opening_name = ""
-    if eco_code and eco_code in ECO_OPENINGS:
-        # Look up the name in the desired language from our data
-        opening_name = ECO_OPENINGS[eco_code].get(lang)
-
     winner_symbol = r" $\star$"
     if annotated:
         winner_symbol += fn('fn_winner')
@@ -672,14 +678,6 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     black_line = fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}}{fn('fn_black_player')} \hfill \textit{{{event_escaped}}}{fn('fn_event')} {tc_escaped}{fn('fn_time_control')}"
     latex_lines.append(white_line)
     latex_lines.append(black_line)
-
-    # Add the localized opening name line if it was found
-    if opening_name:
-        opening_escaped = escape_latex_special_chars(opening_name)
-        eco_code_str = f"({eco_code})"
-        opening_line = fr"\\ \noindent \textit{{{MESSAGES['opening_name_label']}}} {opening_escaped} {eco_code_str}"
-        latex_lines.append(opening_line)
-
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
     return latex_lines
 
@@ -1252,7 +1250,6 @@ if __name__ == "__main__":
 
     # Load the messages right after parsing arguments
     load_messages(args.language)
-    load_eco_data()
 
     delete_output_directory(args.output_dir, args.language)
     generate_chess_book(args)
