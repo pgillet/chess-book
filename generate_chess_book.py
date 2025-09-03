@@ -348,9 +348,9 @@ def _find_opening_data(game):
     return None
 
 
-def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False):
+def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for the chess opening section, highlighting the last move.
+    Generates the LaTeX for the chess opening section, using tabularx for alignment.
     """
     latex_lines = []
     opening_data = _find_opening_data(game)
@@ -370,7 +370,6 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
     title = f"{opening_name} ({eco_code})"
     latex_lines.append(f"\\subsection*{{{escape_latex_special_chars(title)}}}{fn('fn_opening_section')}")
 
-    board = chess.Board()
     marked_sq_option = ""
     try:
         pgn = io.StringIO(opening_moves)
@@ -426,17 +425,16 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
         fen = chess.Board().fen()
         opening_moves_latex = escape_latex_special_chars(opening_moves)
 
-    latex_lines.append(r"\begin{minipage}[c]{0.65\linewidth}")
-    latex_lines.append(r"\vspace{0pt}")
-    latex_lines.append(opening_moves_latex)
-    latex_lines.append(r"\end{minipage}%")
-    latex_lines.append(r"\begin{minipage}[c]{0.35\linewidth}")
-    latex_lines.append(r"\centering")
+    # --- Use tabularx for alignment ---
+    if args:
+        board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
+        board_size_option = f"boardfontsize={board_size}"
+    else:
+        board_size_option = "tinyboard"  # Fallback
 
-    # Build the options string for the chessboard command robustly
     board_options = [
         f"setfen={{{fen}}}",
-        "tinyboard",
+        board_size_option,
         "showmover=false",
         "linewidth=0.1em",
         "pgfstyle=border"
@@ -445,10 +443,15 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
         board_options.append(marked_sq_option)
     options_str = ", ".join(board_options)
 
-    latex_lines.append(f"\\chessboard[{options_str}]")
-    latex_lines.append(r"\end{minipage}")
+    chessboard_cmd = f"\\chessboard[{options_str}]"
 
-    print(latex_lines)
+    # Wrap the content in a tabularx to match the layout of the move analysis section
+    latex_lines.append(r"\begin{tabularx}{\linewidth}{X X}")
+    # The first column contains the opening moves. The \vspace{0pt} helps with vertical alignment.
+    latex_lines.append(fr"\vspace{{0pt}}{opening_moves_latex} &")
+    # The second column contains the centered chessboard.
+    latex_lines.append(fr"\centering {chessboard_cmd} \\")
+    latex_lines.append(r"\end{tabularx}")
 
     return latex_lines
 
@@ -931,7 +934,7 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, args, anno
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
     latex.extend(_generate_game_notation_latex(game, args.notation_type, lang, annotated=annotated))
-    latex.extend(_generate_opening_info_latex(game, args.notation_type, lang, annotated=annotated))
+    latex.extend(_generate_opening_info_latex(game, args.notation_type, lang, annotated=annotated, args=args))
 
     if analysis_data:
         latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
