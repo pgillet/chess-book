@@ -70,6 +70,7 @@
   "fn_board_diagram_smart": "Board diagrams are only shown for \"smart\" move pairs, where at least one move was interesting. The board on the left shows the position after White's move, and the board on the right is after Black's response. The start and end squares of each move are highlighted. A circled king is in check; a circled king with a cross is in checkmate.",
   "fn_move_reminder": "This title shows the move pair in Standard Algebraic Notation.",
   "fn_analysis_explanation": "Evaluation is always from White's perspective: a positive value indicates a White advantage, a negative value a Black advantage. The score is either a numerical value expressed in centipawns (1/100th of a pawn), or a string like MX (Mate in X moves). For example, a score of +1.50c means White is ahead by 1.5 centipawns, while -M3 means Black has a forced checkmate in 3 moves. | Loss: The centipawn loss for the move played compared to the engine's best move. (Good Move, Mistake, Blunder): A classification of the move based on the centipawn loss. Best: The engine's preferred move if it differs from the one played.",
+  "fn_opening_section": "This section details the opening played in the game. It includes the official name of the opening, its ECO (Encyclopedia of Chess Openings) code, the sequence of moves that defines it, and a diagram showing the position after these moves were made.",
   "how_to_read_title": "How to Read This Book",
   "table_metric": "Metric",
   "table_white": "White",

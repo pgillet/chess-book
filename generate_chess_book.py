@@ -6,6 +6,8 @@ from textwrap import dedent
 import argparse
 import shutil  # For deleting directories
 import subprocess  # For running pdflatex
+import io
+import re
 
 import chess.engine
 import chess.pgn
@@ -125,6 +127,7 @@ OPERA_GAME_PGN = """
 [White "Paul Morphy"]
 [Black "Duke Karl / Count Isouard"]
 [ECO "C41"]
+[ECOUrl "https://www.chess.com/openings/Philidor-Defense-Accepted-Traditional-Variation"]
 [WhiteElo "?"]
 [BlackElo "?"]
 [PlyCount "33"]
@@ -136,6 +139,8 @@ OPERA_GAME_PGN = """
 
 # Global variable to hold the loaded messages
 MESSAGES = {}
+OPENINGS = {}
+
 
 def load_messages(lang='en'):
     """Loads the localized messages from the corresponding JSON file."""
@@ -146,7 +151,22 @@ def load_messages(lang='en'):
         with open(file_path, 'r', encoding='utf-8') as f:
             MESSAGES = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Error: Could not load the language file for '{lang}'. Please check the 'locales' directory. Details: {e}", file=sys.stderr)
+        print(
+            f"Error: Could not load the language file for '{lang}'. Please check the 'locales' directory. Details: {e}",
+            file=sys.stderr)
+        sys.exit(1)
+
+
+def load_openings():
+    """Loads the chess openings data from the JSON file."""
+    global OPENINGS
+    try:
+        file_path = Path("data/eco_openings.json")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            OPENINGS = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error: Could not load the openings file. Please check for 'eco_openings.json'. Details: {e}",
+              file=sys.stderr)
         sys.exit(1)
 
 
@@ -291,6 +311,120 @@ def format_pgn_date(pgn_date, lang='en'):
         return pgn_date
 
 
+def _find_opening_data(game):
+    """
+    Finds opening data from the loaded OPENINGS dictionary based on game headers.
+    """
+    eco_url = game.headers.get("ECOUrl", "")
+    eco_code = game.headers.get("ECO", "")
+
+    if not eco_url or not eco_code:
+        return None
+
+    try:
+        opening_key_raw = eco_url.split('/')[-1]
+        parts = opening_key_raw.split('-')
+        opening_key_parts = []
+        for part in parts:
+            if part and not (part[0].isdigit() and '.' in part) and part not in ['O', 'O-O', 'O-O-O']:
+                opening_key_parts.append(part)
+            else:
+                break
+        opening_key = '-'.join(opening_key_parts)
+    except IndexError:
+        return None
+
+    # Primary lookup method
+    opening_data = OPENINGS.get(opening_key)
+    if opening_data and opening_data.get("ECO") == eco_code:
+        return opening_data
+
+    # Fallback search if the primary method fails
+    for key, data in OPENINGS.items():
+        if data.get("ECO") == eco_code:
+            # A simple heuristic: check if the key from the JSON is a substring of the URL key
+            if key in opening_key:
+                return data
+    return None
+
+
+def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False):
+    """
+    Generates the LaTeX for the chess opening section.
+    """
+    latex_lines = []
+    opening_data = _find_opening_data(game)
+
+    if not opening_data:
+        return []
+
+    eco_code = opening_data.get("ECO", "")
+    opening_name = opening_data.get('lang', {}).get(lang, opening_data.get('lang', {}).get('en', ''))
+    opening_moves = opening_data.get('moves', '')
+
+    if not opening_name or not opening_moves:
+        return []
+
+    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
+
+    title = f"{opening_name} ({eco_code})"
+    latex_lines.append(f"\\subsection*{{{escape_latex_special_chars(title)}}}{fn('fn_opening_section')}")
+
+    board = chess.Board()
+    try:
+        # Use a temporary game to parse the moves string
+        pgn = io.StringIO(opening_moves)
+        temp_game = chess.pgn.read_game(pgn)
+        if not temp_game:
+            return []
+
+        # Apply moves to get final FEN
+        board = temp_game.board()
+        for move in temp_game.mainline_moves():
+            board.push(move)
+        fen = board.fen()
+
+        # Format the moves string for display
+        temp_board_for_notation = temp_game.board()
+        formatted_moves_parts = []
+        for i, move in enumerate(temp_game.mainline_moves()):
+            if i % 2 == 0:
+                formatted_moves_parts.append(f"{(i // 2) + 1}.")
+
+            san = temp_board_for_notation.san(move)
+            if notation_type == "figurine":
+                piece = temp_board_for_notation.piece_at(move.from_square)
+                if piece and piece.piece_type != chess.PAWN:
+                    figurine_cmd = _get_chess_figurine(piece.symbol())
+                    san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
+                    formatted_moves_parts.append(figurine_cmd + escape_latex_special_chars(san_suffix))
+                else:
+                    formatted_moves_parts.append(escape_latex_special_chars(san))
+            else:  # algebraic
+                formatted_moves_parts.append(escape_latex_special_chars(translate_san_move(san)))
+
+            temp_board_for_notation.push(move)
+
+        opening_moves_latex = " ".join(formatted_moves_parts)
+
+    except Exception:
+        # Fallback if PGN parsing of moves fails
+        fen = chess.Board().fen()
+        opening_moves_latex = escape_latex_special_chars(opening_moves)
+
+    # LaTeX layout with minipage for side-by-side display
+    latex_lines.append(r"\begin{minipage}[c]{0.65\linewidth}")
+    latex_lines.append(r"\vspace{0pt}")  # Ensure top alignment
+    latex_lines.append(opening_moves_latex)
+    latex_lines.append(r"\end{minipage}%")
+    latex_lines.append(r"\begin{minipage}[c]{0.35\linewidth}")
+    latex_lines.append(r"\centering")
+    latex_lines.append(f"\\chessboard[setfen={{{fen}}}, tinyboard, showmover=false]")
+    latex_lines.append(r"\end{minipage}")
+
+    return latex_lines
+
+
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
     """
     Generates the LaTeX for the game notation. For long games, it uses a two-column
@@ -414,7 +548,7 @@ def _generate_game_notation_latex(game, notation_type, lang='en', annotated=Fals
                             san_suffix = black_san[1:] if black_san and black_san[0].upper() in 'NBRQK' else black_san
                             black_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
                         else:
-                            black_move_str_latex = escape_latex_special_chars(black_san)
+                            black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
                 else:
                     black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
                 board.push(black_move)
@@ -769,6 +903,7 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, args, anno
         latex.extend(_generate_game_metadata_latex(game, game_index, lang))
 
     latex.extend(_generate_game_notation_latex(game, args.notation_type, lang, annotated=annotated))
+    latex.extend(_generate_opening_info_latex(game, args.notation_type, lang, annotated=annotated))
 
     if analysis_data:
         latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
@@ -1030,7 +1165,7 @@ def _generate_notation_appendix(notation_type, lang='en'):
 
         \subsection*{{{subtitle}}}
         {intro}
-        
+
         \smallskip
         \begin{{center}}
         \chessboard[tinyboard, showmover=false]
@@ -1066,6 +1201,7 @@ def _generate_final_page():
         \end{{center}}
         \vspace*{{\stretch{{2}}}}
     ''')
+
 
 def _process_book_part(directory, basename, lang):
     """
@@ -1229,7 +1365,8 @@ def generate_chess_book(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a chess book from PGN files.")
     parser.add_argument("pgn_file", type=str, help="Path to the PGN file.")
-    parser.add_argument("output_dir", type=str, help="Directory where the LaTeX files and the final PDF will be generated.")
+    parser.add_argument("output_dir", type=str,
+                        help="Directory where the LaTeX files and the final PDF will be generated.")
     parser.add_argument("--book_design_dir", type=str,
                         help="Directory containing LaTeX/text files for book parts (front-cover, dedication, etc.).")
     parser.add_argument("--title", type=str,
@@ -1240,16 +1377,19 @@ if __name__ == "__main__":
                         help="The author of the book (optional).")
     parser.add_argument("--notation_type", type=str, choices=["algebraic", "figurine"], default="figurine",
                         help="Type of notation to use: 'algebraic' or 'figurine' (default: 'figurine').")
-    parser.add_argument("--display_boards", action="store_true", help="Enable display of chessboards. If off (default), only notation is displayed.")
+    parser.add_argument("--display_boards", action="store_true",
+                        help="Enable display of chessboards. If off (default), only notation is displayed.")
     parser.add_argument("--board_scope", type=str, choices=["all", "smart"], default="smart",
                         help="Specify whether to display boards for 'all' moves or only 'smart' moves (i.e., moves with CPL > 0, default: 'smart').")
     parser.add_argument("--language", type=str, choices=["en", "fr"], default="en", help="Language for text.")
-    parser.add_argument("--paper_size", type=str, choices=['a3', 'a4', 'a5'], default='a4', help="Paper size for the output PDF (default: 'a4').")
+    parser.add_argument("--paper_size", type=str, choices=['a3', 'a4', 'a5'], default='a4',
+                        help="Paper size for the output PDF (default: 'a4').")
     parser.add_argument("--how_to_read", action="store_true", help="Add 'How to Read This Book' section.")
     args = parser.parse_args()
 
     # Load the messages right after parsing arguments
     load_messages(args.language)
+    load_openings()
 
     delete_output_directory(args.output_dir, args.language)
     generate_chess_book(args)
