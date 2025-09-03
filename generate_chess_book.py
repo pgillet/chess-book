@@ -350,7 +350,7 @@ def _find_opening_data(game):
 
 def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False):
     """
-    Generates the LaTeX for the chess opening section.
+    Generates the LaTeX for the chess opening section, highlighting the last move.
     """
     latex_lines = []
     opening_data = _find_opening_data(game)
@@ -371,23 +371,38 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
     latex_lines.append(f"\\subsection*{{{escape_latex_special_chars(title)}}}{fn('fn_opening_section')}")
 
     board = chess.Board()
+    marked_sq_option = ""
     try:
-        # Use a temporary game to parse the moves string
         pgn = io.StringIO(opening_moves)
         temp_game = chess.pgn.read_game(pgn)
         if not temp_game:
             return []
 
-        # Apply moves to get final FEN
+        opening_mainline_moves = list(temp_game.mainline_moves())
+
+        if opening_mainline_moves:
+            last_move = opening_mainline_moves[-1]
+            board_before_last_move = temp_game.board()
+            for move in opening_mainline_moves[:-1]:
+                board_before_last_move.push(move)
+
+            if board_before_last_move.is_castling(last_move):
+                king_from_sq = last_move.from_square
+                rook_from_sq = chess.H1 if board_before_last_move.is_kingside_castling(last_move) else chess.A1
+                if board_before_last_move.turn == chess.BLACK:
+                    rook_from_sq = chess.H8 if board_before_last_move.is_kingside_castling(last_move) else chess.A8
+                marked_sq_option = f"markfields={{{chess.square_name(king_from_sq)},{chess.square_name(rook_from_sq)}}}"
+            else:
+                marked_sq_option = f"markfields={{{chess.square_name(last_move.from_square)},{chess.square_name(last_move.to_square)}}}"
+
         board = temp_game.board()
-        for move in temp_game.mainline_moves():
+        for move in opening_mainline_moves:
             board.push(move)
         fen = board.fen()
 
-        # Format the moves string for display
         temp_board_for_notation = temp_game.board()
         formatted_moves_parts = []
-        for i, move in enumerate(temp_game.mainline_moves()):
+        for i, move in enumerate(opening_mainline_moves):
             if i % 2 == 0:
                 formatted_moves_parts.append(f"{(i // 2) + 1}.")
 
@@ -408,19 +423,32 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
         opening_moves_latex = " ".join(formatted_moves_parts)
 
     except Exception:
-        # Fallback if PGN parsing of moves fails
         fen = chess.Board().fen()
         opening_moves_latex = escape_latex_special_chars(opening_moves)
 
-    # LaTeX layout with minipage for side-by-side display
     latex_lines.append(r"\begin{minipage}[c]{0.65\linewidth}")
-    latex_lines.append(r"\vspace{0pt}")  # Ensure top alignment
+    latex_lines.append(r"\vspace{0pt}")
     latex_lines.append(opening_moves_latex)
     latex_lines.append(r"\end{minipage}%")
     latex_lines.append(r"\begin{minipage}[c]{0.35\linewidth}")
     latex_lines.append(r"\centering")
-    latex_lines.append(f"\\chessboard[setfen={{{fen}}}, tinyboard, showmover=false]")
+
+    # Build the options string for the chessboard command robustly
+    board_options = [
+        f"setfen={{{fen}}}",
+        "tinyboard",
+        "showmover=false",
+        "linewidth=0.1em",
+        "pgfstyle=border"
+    ]
+    if marked_sq_option:
+        board_options.append(marked_sq_option)
+    options_str = ", ".join(board_options)
+
+    latex_lines.append(f"\\chessboard[{options_str}]")
     latex_lines.append(r"\end{minipage}")
+
+    print(latex_lines)
 
     return latex_lines
 
