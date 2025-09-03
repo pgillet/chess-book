@@ -1,0 +1,386 @@
+{
+  "Indian-Game-Tartakower-Attack": {
+    "ECO": "A45",
+    "lang": {
+      "en": "Indian Game Tartakower Attack",
+      "fr": "Jeu indien, attaque Tartakower"
+    },
+    "moves": "1. d4 Nf6 2. g3 d5 3. Bg2"
+  },
+  "Giuoco-Piano-Game-Giuoco-Pianissimo-Italian-Four-Knights-Variation": {
+    "ECO": "C50",
+    "lang": {
+      "en": "Giuoco Piano Game Giuoco Pianissimo Italian Four Knights Variation",
+      "fr": "Partie italienne, Giuoco Pianissimo, variation des quatre cavaliers"
+    },
+    "moves": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. Nc3 Nf6 5. d3 d6"
+  },
+  "Kings-Fianchetto-Opening": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Kings Fianchetto Opening",
+      "fr": "Ouverture fianchetto roi"
+    },
+    "moves": "1. g3"
+  },
+  "Nimzowitsch-Defense-Kennedy-Linksspringer-Variation": {
+    "ECO": "B00",
+    "lang": {
+      "en": "Nimzowitsch Defense Kennedy Linksspringer Variation",
+      "fr": "Défense Nimzowitsch, variation Kennedy Linksspringer"
+    },
+    "moves": "1. e4 Nc6 2. d4 e5 3. d5"
+  },
+  "Kings-Pawn-Opening-Kings-Knight-Variation": {
+    "ECO": "C40",
+    "lang": {
+      "en": "Kings Pawn Opening Kings Knight Variation",
+      "fr": "Début du pion roi, variation du cavalier roi"
+    },
+    "moves": "1. e4 e5 2. Nf3"
+  },
+  "Queens-Pawn-Opening": {
+    "ECO": "D00",
+    "lang": {
+      "en": "Queens Pawn Opening",
+      "fr": "Début du pion dame"
+    },
+    "moves": "1. d4 d5 2. e3 e6"
+  },
+  "Kings-Fianchetto-Opening-Indian-Defense": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Kings Fianchetto Opening Indian Defense",
+      "fr": "Ouverture fianchetto roi, défense indienne"
+    },
+    "moves": "1. g3 Nf6 2. Bg2"
+  },
+  "Kings-Pawn-Opening": {
+    "ECO": "C20",
+    "lang": {
+      "en": "Kings Pawn Opening",
+      "fr": "Début du pion roi"
+    },
+    "moves": "1. e4 e5"
+  },
+  "Indian-Game-Tartakower-Attack": {
+    "ECO": "A45",
+    "lang": {
+      "en": "Indian Game Tartakower Attack",
+      "fr": "Jeu indien, attaque Tartakower"
+    },
+    "moves": "1. d4 Nf6 2. g3 Bg7 3. Bg2 d6 4. e4"
+  },
+  "Kings-Pawn-Opening-Leonardis-Variation": {
+    "ECO": "C20",
+    "lang": {
+      "en": "Kings Pawn Opening Leonardis Variation",
+      "fr": "Début du pion roi, variation Leonardis"
+    },
+    "moves": "1. e4 e5 2. d3 Nf6 3. Nf3"
+  },
+  "Pirc-Defense-Modern-Defense-Geller-System": {
+    "ECO": "B07",
+    "lang": {
+      "en": "Pirc Defense Modern Defense Geller System",
+      "fr": "Défense Pirc, défense moderne, système Geller"
+    },
+    "moves": "1. e4 d6 2. Nf3 Nf6 3. Nc3 e5"
+  },
+  "Undefined": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Undefined",
+      "fr": "Indéfinie"
+    },
+    "moves": ""
+  },
+  "French-Defense-Reti-Spielmann-Attack": {
+    "ECO": "C00",
+    "lang": {
+      "en": "French Defense Reti Spielmann Attack",
+      "fr": "Défense française, attaque Réti-Spielmann"
+    },
+    "moves": "1. g3 e6 2. e4"
+  },
+  "Ponziani-Opening": {
+    "ECO": "C44",
+    "lang": {
+      "en": "Ponziani Opening",
+      "fr": "Ouverture Ponziani"
+    },
+    "moves": "1. e4 e5 2. Nf3 Nc6 3. c3 d6 4. d4"
+  },
+  "Birds-Opening-Dutch-Variation": {
+    "ECO": "A03",
+    "lang": {
+      "en": "Birds Opening Dutch Variation",
+      "fr": "Ouverture Bird, variation hollandaise"
+    },
+    "moves": "1. f4 d5 2. Nf3"
+  },
+  "Pirc-Defense-Maroczy-Defense": {
+    "ECO": "B07",
+    "lang": {
+      "en": "Pirc Defense Maroczy Defense",
+      "fr": "Défense Pirc, défense Maroczy"
+    },
+    "moves": "1. e4 d6 2. d4"
+  },
+  "Queens-Pawn-Opening-Horwitz-Defense": {
+    "ECO": "A40",
+    "lang": {
+      "en": "Queens Pawn Opening Horwitz Defense",
+      "fr": "Début du pion dame, défense Horwitz"
+    },
+    "moves": "1. d4 e6 2. g3 d5 3. Bg2"
+  },
+  "Van-t-Kruijs-Opening": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Van t Kruijs Opening",
+      "fr": "Ouverture Van 't Kruijs"
+    },
+    "moves": "1. e3 e5"
+  },
+  "Queens-Pawn-Opening-Zukertort-Variation": {
+    "ECO": "D02",
+    "lang": {
+      "en": "Queens Pawn Opening Zukertort Variation",
+      "fr": "Début du pion dame, variation Zukertort"
+    },
+    "moves": "1. d4 d5 2. Nf3"
+  },
+  "English-Opening-Kings-English-Variation": {
+    "ECO": "A20",
+    "lang": {
+      "en": "English Opening Kings English Variation",
+      "fr": "Ouverture anglaise, variation anglaise du roi"
+    },
+    "moves": "1. c4 e5 2. e3"
+  },
+  "Sicilian-Defense-Lasker-Dunne-Attack": {
+    "ECO": "B20",
+    "lang": {
+      "en": "Sicilian Defense Lasker Dunne Attack",
+      "fr": "Défense sicilienne, attaque Lasker-Dunne"
+    },
+    "moves": "1. g3 c5 2. e4 d5"
+  },
+  "Indian-Game-Knights-Variation": {
+    "ECO": "A46",
+    "lang": {
+      "en": "Indian Game Knights Variation",
+      "fr": "Jeu indien, variation des cavaliers"
+    },
+    "moves": "1. d4 Nf6 2. Nf3 e6 3. g3 d5 4. Bg2"
+  },
+  "Vienna-Game-Max-Lange-Paulsen-Variation": {
+    "ECO": "C25",
+    "lang": {
+      "en": "Vienna Game Max Lange Paulsen Variation",
+      "fr": "Partie viennoise, variation Max Lange-Paulsen"
+    },
+    "moves": "1. e4 e5 2. Nc3 Nc6 3. g3 Nf6 4. Bg2 Bc5 5. d3"
+  },
+  "Philidor-Defense": {
+    "ECO": "C41",
+    "lang": {
+      "en": "Philidor Defense",
+      "fr": "Défense Philidor"
+    },
+    "moves": "1. e4 e5 2. Nf3 d6"
+  },
+  "Italian-Game": {
+    "ECO": "C50",
+    "lang": {
+      "en": "Italian Game",
+      "fr": "Partie italienne"
+    },
+    "moves": "1. e4 e5 2. Nf3 Nc6 3. Bc4"
+  },
+  "Center-Game": {
+    "ECO": "C21",
+    "lang": {
+      "en": "Center Game",
+      "fr": "Partie du centre"
+    },
+    "moves": "1. e4 e5 2. d4"
+  },
+  "Bishops-Opening-Boi-Variation": {
+    "ECO": "C20",
+    "lang": {
+      "en": "Bishops Opening Boi Variation",
+      "fr": "Ouverture du fou, variation Boi"
+    },
+    "moves": "1. e4 e5 2. Bc4 Bc5 3. Qf3"
+  },
+  "Kings-Indian-Defense-Advance-Anti-Grunfeld-Variation": {
+    "ECO": "E60",
+    "lang": {
+      "en": "Kings Indian Defense Advance Anti Grunfeld Variation",
+      "fr": "Défense est-indienne, variation anti-Grünfeld avancée"
+    },
+    "moves": "1. d4 Nf6 2. c4 g6 3. d5 Bg7"
+  },
+  "Bishops-Opening": {
+    "ECO": "C23",
+    "lang": {
+      "en": "Bishops Opening",
+      "fr": "Ouverture du fou"
+    },
+    "moves": "1. e4 e5 2. Bc4"
+  },
+  "Queens-Pawn-Opening-Accelerated-London-System": {
+    "ECO": "D00",
+    "lang": {
+      "en": "Queens Pawn Opening Accelerated London System",
+      "fr": "Début du pion dame, système de Londres accéléré"
+    },
+    "moves": "1. d4 d5 2. Bf4 e6 3. e3"
+  },
+  "Kings-Indian-Attack-Yugoslav-Variation": {
+    "ECO": "A07",
+    "lang": {
+      "en": "Kings Indian Attack Yugoslav Variation",
+      "fr": "Attaque est-indienne, variation yougoslave"
+    },
+    "moves": "1. Nf3 d5 2. g3 Nc6 3. d4 Nf6 4. Bg2"
+  },
+  "Pirc-Defense": {
+    "ECO": "B07",
+    "lang": {
+      "en": "Pirc Defense",
+      "fr": "Défense Pirc"
+    },
+    "moves": "1. e4 d6 2. g3"
+  },
+  "Queens-Pawn-Opening-Blackmar-Gambit": {
+    "ECO": "D00",
+    "lang": {
+      "en": "Queens Pawn Opening Blackmar Gambit",
+      "fr": "Début du pion dame, gambit Blackmar"
+    },
+    "moves": "1. d4 d5 2. e4"
+  },
+  "Nimzowitsch-Larsen-Attack-Modern-Variation": {
+    "ECO": "A01",
+    "lang": {
+      "en": "Nimzowitsch Larsen Attack Modern Variation",
+      "fr": "Attaque Nimzowitsch-Larsen, variation moderne"
+    },
+    "moves": "1. b3 e5 2. Bb2"
+  },
+  "Saragossa-Opening": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Saragossa Opening",
+      "fr": "Ouverture de Saragosse"
+    },
+    "moves": "1. c3 e5"
+  },
+  "Philidor-Defense-Nimzowitsch-Variation": {
+    "ECO": "C41",
+    "lang": {
+      "en": "Philidor Defense Nimzowitsch Variation",
+      "fr": "Défense Philidor, variation Nimzowitsch"
+    },
+    "moves": "1. e4 e5 2. Nf3 d6 3. d4 Nf6 4. Nc3"
+  },
+  "Queens-Gambit-Declined-Marshall-Defense": {
+    "ECO": "D06",
+    "lang": {
+      "en": "Queens Gambit Declined Marshall Defense",
+      "fr": "Gambit dame refusé, défense Marshall"
+    },
+    "moves": "1. d4 d5 2. c4 Nf6"
+  },
+  "Petrovs-Defense-Classical-Variation": {
+    "ECO": "C42",
+    "lang": {
+      "en": "Petrovs Defense Classical Variation",
+      "fr": "Défense Petrov, variation classique"
+    },
+    "moves": "1. e4 e5 2. Nf3 Nf6 3. Nxe5"
+  },
+  "Mieses-Opening": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Mieses Opening",
+      "fr": "Ouverture Mieses"
+    },
+    "moves": "1. d3 d5"
+  },
+  "English-Opening-Symmetrical-Variation": {
+    "ECO": "A30",
+    "lang": {
+      "en": "English Opening Symmetrical Variation",
+      "fr": "Ouverture anglaise, variation symétrique"
+    },
+    "moves": "1. c4 c5 2. g3 Nc6"
+  },
+  "Petrovs-Defense-Three-Knights-Game": {
+    "ECO": "C42",
+    "lang": {
+      "en": "Petrovs Defense Three Knights Game",
+      "fr": "Défense Petrov, partie des trois cavaliers"
+    },
+    "moves": "1. e4 e5 2. Nf3 Nf6 3. Nc3"
+  },
+  "Queens-Pawn-Opening": {
+    "ECO": "D00",
+    "lang": {
+      "en": "Queens Pawn Opening",
+      "fr": "Début du pion dame"
+    },
+    "moves": "1. d4 d5 2. Bf4"
+  },
+  "Kings-Fianchetto-Opening": {
+    "ECO": "A00",
+    "lang": {
+      "en": "Kings Fianchetto Opening",
+      "fr": "Ouverture fianchetto roi"
+    },
+    "moves": "1. g3"
+  },
+  "Modern-Defense-with-1-e4": {
+    "ECO": "B06",
+    "lang": {
+      "en": "Modern Defense with 1 e4",
+      "fr": "Défense moderne avec 1. e4"
+    },
+    "moves": "1. e4 g6 2. g3"
+  },
+  "Reti-Opening": {
+    "ECO": "A06",
+    "lang": {
+      "en": "Reti Opening",
+      "fr": "Ouverture Réti"
+    },
+    "moves": "1. Nf3 d5 2. e3"
+  },
+  "Philidor-Defense": {
+    "ECO": "C41",
+    "lang": {
+      "en": "Philidor Defense",
+      "fr": "Défense Philidor"
+    },
+    "moves": "1. e4 e5 2. Nf3 d6 3. d4"
+  },
+  "French-Defense-Normal-Variation": {
+    "ECO": "C10",
+    "lang": {
+      "en": "French Defense Normal Variation",
+      "fr": "Défense française, variation normale"
+    },
+    "moves": "1. e4 e6 2. d4"
+  },
+  "Three-Knights-Opening": {
+    "ECO": "C46",
+    "lang": {
+      "en": "Three Knights Opening",
+      "fr": "Ouverture des trois cavaliers"
+    },
+    "moves": "1. e4 e5 2. Nf3 Nc6 3. Nc3"
+  }
+}
