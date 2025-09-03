@@ -63,14 +63,6 @@
     },
     "moves": "1. e4"
   },
-  "Indian-Game-Tartakower-Attack": {
-    "ECO": "A45",
-    "lang": {
-      "en": "Indian Game Tartakower Attack",
-      "fr": "Jeu indien, attaque Tartakower"
-    },
-    "moves": "1. d4 Nf6 2. g3"
-  },
   "Kings-Pawn-Opening-Leonardis-Variation": {
     "ECO": "C20",
     "lang": {
@@ -327,22 +319,6 @@
     },
     "moves": "1. e4 e5 2. Nf3 Nf6 3. Nc3"
   },
-  "Queens-Pawn-Opening": {
-    "ECO": "D00",
-    "lang": {
-      "en": "Queens Pawn Opening",
-      "fr": "Début du pion dame"
-    },
-    "moves": "1. d4"
-  },
-  "Kings-Fianchetto-Opening": {
-    "ECO": "A00",
-    "lang": {
-      "en": "Kings Fianchetto Opening",
-      "fr": "Ouverture fianchetto roi"
-    },
-    "moves": "1. g3"
-  },
   "Modern-Defense-with-1-e4": {
     "ECO": "B06",
     "lang": {
@@ -358,14 +334,6 @@
       "fr": "Ouverture Réti"
     },
     "moves": "1. Nf3"
-  },
-  "Philidor-Defense": {
-    "ECO": "C41",
-    "lang": {
-      "en": "Philidor Defense",
-      "fr": "Défense Philidor"
-    },
-    "moves": "1. e4 e5 2. Nf3 d6"
   },
   "French-Defense-Normal-Variation": {
     "ECO": "C10",
