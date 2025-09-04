@@ -350,7 +350,8 @@ def _find_opening_data(game):
 
 def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False, args=None):
     """
-    Generates the LaTeX for the chess opening section, using tabularx for alignment.
+    Generates the LaTeX for the chess opening section with custom layout,
+    self-contained within this function.
     """
     latex_lines = []
     opening_data = _find_opening_data(game)
@@ -367,9 +368,10 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
 
     fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
 
-    title = f"{opening_name} ({eco_code})"
-    latex_lines.append(f"\\subsection*{{{escape_latex_special_chars(title)}}}{fn('fn_opening_section')}")
+    # The subsection is now invisible, serving only as an anchor for the footnote.
+    latex_lines.append(f"\\subsection*{{{''}}}{fn('fn_opening_section')}")
 
+    title = f"{opening_name} ({eco_code})"
     marked_sq_option = ""
     try:
         pgn = io.StringIO(opening_moves)
@@ -425,7 +427,7 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
         fen = chess.Board().fen()
         opening_moves_latex = escape_latex_special_chars(opening_moves)
 
-    # --- Use tabularx for alignment ---
+    # --- Setup for the new layout ---
     if args:
         board_size = PAPER_SIZE_SETTINGS[args.paper_size]['board_size']
         board_size_option = f"boardfontsize={board_size}"
@@ -442,14 +444,18 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
     if marked_sq_option:
         board_options.append(marked_sq_option)
     options_str = ", ".join(board_options)
-
     chessboard_cmd = f"\\chessboard[{options_str}]"
 
-    # Wrap the content in a tabularx to match the layout of the move analysis section
+    # Use a \parbox to force left alignment within the first column.
+    # \linewidth is relative to the tabularx column width.
+    title_latex = escape_latex_special_chars(title)
+    left_cell_content = (
+        fr"\parbox[t]{{\linewidth}}{{\raggedright {title_latex}\\[0.5ex] {opening_moves_latex}}}"
+    )
+
+    # Use a standard tabularx; the parbox handles the alignment.
     latex_lines.append(r"\begin{tabularx}{\linewidth}{X X}")
-    # The first column contains the opening moves. The \vspace{0pt} helps with vertical alignment.
-    latex_lines.append(fr"\vspace{{0pt}}{opening_moves_latex} &")
-    # The second column contains the centered chessboard.
+    latex_lines.append(f"{left_cell_content} &")
     latex_lines.append(fr"\centering {chessboard_cmd} \\")
     latex_lines.append(r"\end{tabularx}")
 
