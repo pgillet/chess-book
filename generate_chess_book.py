@@ -371,7 +371,6 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
     # The subsection is now invisible, serving only as an anchor for the footnote.
     latex_lines.append(f"\\subsection*{{{''}}}{fn('fn_opening_section')}")
 
-    title = f"{opening_name} ({eco_code})"
     marked_sq_option = ""
     try:
         pgn = io.StringIO(opening_moves)
@@ -447,8 +446,11 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
     chessboard_cmd = f"\\chessboard[{options_str}]"
 
     # Use a \parbox to force left alignment within the first column.
-    # \linewidth is relative to the tabularx column width.
-    title_latex = escape_latex_special_chars(title)
+    # The opening name is now wrapped in \textbf{...} to make it bold.
+    opening_name_latex = f"\\textbf{{{escape_latex_special_chars(opening_name)}}}"
+    eco_code_latex = escape_latex_special_chars(f"({eco_code})")
+    title_latex = f"{opening_name_latex} {eco_code_latex}"
+
     left_cell_content = (
         fr"\parbox[t]{{\linewidth}}{{\raggedright {title_latex}\\[0.5ex] {opening_moves_latex}}}"
     )
