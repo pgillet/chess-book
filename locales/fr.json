@@ -71,7 +71,7 @@
   "fn_move_reminder": "Ce titre rappelle la paire de coups en notation algébrique standard.",
   "fn_analysis_explanation": "L'évaluation est toujours du point de vue des Blancs : une valeur positive indique un avantage pour les Blancs, une valeur négative un avantage pour les Noirs. Le score est soit une valeur numérique exprimée en centipions (1/100ème de pion), soit une chaîne comme MX (Mat en X coups). Par exemple, un score de +1.50c signifie que les Blancs ont un avantage de 1.5 centipion, tandis que -M3 signifie que les Noirs ont un mat forcé en 3 coups. | Perte : La perte en centipions pour le coup joué par rapport au meilleur coup du moteur. (Bon Coup, Erreur, Gaffe) : Une classification du coup basée sur la perte en centipions. Meilleur : Le coup préféré du moteur s'il diffère de celui joué.",
   "fn_opening_section": "Cette section détaille l'ouverture jouée dans la partie. Elle inclut le nom officiel de l'ouverture, son code ECO (Encyclopédie des ouvertures d'échecs), la séquence de coups qui la définit, et un diagramme montrant la position après que ces coups ont été joués.",
-  "how_to_read_title": "Comment Lire ce Livre",
+  "how_to_read_title": "Comment Lire ce Livre : Exemple de Partie",
   "table_metric": "Métrique",
   "table_white": "Blancs",
   "table_black": "Noirs",

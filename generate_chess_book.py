@@ -650,6 +650,10 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     latex_lines.append(f"{MESSAGES['table_mistakes']} & {white_mistakes} & {black_mistakes} \\\\")
     latex_lines.append(f"{MESSAGES['table_inaccuracies']} & {white_inaccuracies} & {black_inaccuracies} \\\\")
     latex_lines.append(r"\end{tabularx}")
+
+    # Add a single line of vertical space after the table
+    latex_lines.append(r"\vspace{\baselineskip}")
+
     return latex_lines
 
 
@@ -1171,17 +1175,15 @@ def _generate_simple_title_page(title, subtitle, author):
 
 def _generate_notation_appendix(notation_type, lang='en'):
     """
-    Generates a unified LaTeX appendix explaining both Standard and Figurine chess notation.
+    Generates a unified LaTeX appendix explaining chess notation.
+    The title is now invisible on the page but appears in the header.
     """
     msg = MESSAGES
     title = msg['appendix_notation_title']
     intro = msg['appendix_intro']
     special_moves_title = msg['appendix_special_moves']
-
-    # Use the new combined subtitle for a unified section
     subtitle = msg['appendix_combined_subtitle']
 
-    # Build a single 3-column table for both notation types
     piece_table = dedent(fr'''
         \begin{{tabular}}{{l c c}}
         \textbf{{{msg['appendix_table_piece']}}} & \textbf{{{msg['appendix_table_symbol_san']}}} & \textbf{{{msg['appendix_table_symbol_fan']}}} \\ \hline
@@ -1194,12 +1196,13 @@ def _generate_notation_appendix(notation_type, lang='en'):
         \end{{tabular}}
     ''')
 
-    # Assemble the final LaTeX string for the appendix
     return dedent(fr'''
         \cleardoublepage
-        \section*{{{title}}}
+        % The section command is now empty to make the title invisible.
+        \section*{{{''}}}
         \addcontentsline{{toc}}{{section}}{{{title}}}
-        \markright{{{''}}} % Clear the header for the appendix page
+        % Use \markright to place the title in the page header.
+        \markright{{{title}}}
         \thispagestyle{{fancy}}
 
         \subsection*{{{subtitle}}}
@@ -1223,6 +1226,9 @@ def _generate_notation_appendix(notation_type, lang='en'):
             \item {msg['appendix_promotion_text']}
             \item {msg['appendix_disambiguation']}
         \end{{itemize}}
+        
+        \newpage\thispagestyle{{empty}}\mbox{{}}
+        \cleardoublepage
     ''')
 
 
@@ -1355,8 +1361,11 @@ def generate_chess_book(args):
     except Exception as e:
         print(MESSAGES['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
         print(MESSAGES['analysis_disabled_warning'])
+
     if args.how_to_read:
         generate_how_to_read_section(tex_master, args, output_dir, engine)
+        tex_master.append(_generate_notation_appendix(args.notation_type, args.language))
+
     for idx, game in enumerate(games):
         try:
             print(MESSAGES['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
@@ -1378,11 +1387,6 @@ def generate_chess_book(args):
     # The backmatter command is useful for appendices, indices, etc.
     tex_master.append(r"\backmatter")
 
-    # Add the notation appendix
-    if args.how_to_read:
-        tex_master.append(_generate_notation_appendix(args.notation_type, args.language))
-
-    # Add the final page with the king symbol
     tex_master.append(_generate_final_page())
 
     # Add a blank page if there is front matter.
