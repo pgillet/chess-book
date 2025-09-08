@@ -108,5 +108,11 @@
   "appendix_castling_text": "\\textbf{O-O}: Kingside castling. \\textbf{O-O-O}: Queenside castling.",
   "appendix_promotion_text": "\\textbf{=Q}: Indicates a pawn promotes to a Queen (e.g., \\texttt{e8=Q}).",
   "appendix_en_passant_text": "\\textbf{e.p.}: Indicates a capture \"en passant\" (in passing), a special pawn capture that can occur immediately after a pawn makes a two-square advance from its starting square.",
-  "appendix_disambiguation": "When two identical pieces can move to the same square, the starting file or rank is added to avoid ambiguity (e.g., \\texttt{Nbd2} or \\texttt{R1e2})."
+  "appendix_disambiguation": "When two identical pieces can move to the same square, the starting file or rank is added to avoid ambiguity (e.g., \\texttt{Nbd2} or \\texttt{R1e2}).",
+  "time_controls_title": "Understanding Time Controls",
+  "time_controls_intro": "In chess, a time control is a mechanism that limits the total time each player has to make all their moves. The games in this collection were played under various time controls, which are expressed in one of two main formats:",
+  "time_controls_increment_desc": "The format \\texttt{X+Y} (e.g., 60+1) indicates an \\textit{increment} control. Each player starts with \\texttt{X} seconds on their clock, and after every move they make, an additional \\texttt{Y} seconds are added to their remaining time. This ensures that a player will never run out of time as long as they move quickly enough.",
+  "time_controls_standard_desc": "A single number (e.g., 300) indicates the total number of seconds each player has for the entire game, without any increment.",
+  "time_controls_daily_desc": "The format \\texttt{1/86400} represents a \\textit{daily} or \\textit{correspondence} time control, where players have one day (86,400 seconds) to make each move.",
+  "time_controls_list_title": "Time Controls in This Collection:"
 }

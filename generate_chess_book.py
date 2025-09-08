@@ -1232,6 +1232,35 @@ def _generate_notation_appendix(notation_type, lang='en'):
     ''')
 
 
+def _generate_time_controls_explanation_latex(time_controls, lang='en'):
+    """
+    Generates a LaTeX page explaining the time controls found in the PGN.
+    """
+    msg = MESSAGES
+    title = msg['time_controls_title']
+
+    # Format the list of unique time controls for display
+    formatted_tc_list = ", ".join([f"\\texttt{{{tc}}}" for tc in sorted(list(time_controls))])
+
+    return dedent(fr'''
+        \cleardoublepage
+        \section*{{{title}}}
+        \addcontentsline{{toc}}{{section}}{{{title}}}
+        \markright{{{title}}}
+        \thispagestyle{{fancy}}
+
+        {msg['time_controls_intro']}
+        \begin{{itemize}}[leftmargin=*]
+            \item {msg['time_controls_increment_desc']}
+            \item {msg['time_controls_standard_desc']}
+            \item {msg['time_controls_daily_desc']}
+        \end{{itemize}}
+
+        \subsection*{{{msg['time_controls_list_title']}}}
+        {formatted_tc_list}
+    ''')
+
+
 def _generate_final_page():
     """Generates a final, clean page with a large king symbol."""
     # Define the chess symbol to be placed on the page
@@ -1282,6 +1311,9 @@ def generate_chess_book(args):
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(args.pgn_file) as f:
         games = list(iter(lambda: chess.pgn.read_game(f), None))
+
+    # --- Extract unique time controls from the games ---
+    unique_time_controls = set(game.headers.get("TimeControl", "?") for game in games)
 
     settings = PAPER_SIZE_SETTINGS[args.paper_size]
 
@@ -1366,6 +1398,7 @@ def generate_chess_book(args):
     if args.how_to_read:
         generate_how_to_read_section(tex_master, args, output_dir, engine)
         tex_master.append(_generate_notation_appendix(args.notation_type, args.language))
+        tex_master.append(_generate_time_controls_explanation_latex(unique_time_controls, args.language))
 
     for idx, game in enumerate(games):
         try:
