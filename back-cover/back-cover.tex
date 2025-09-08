@@ -1,0 +1,84 @@
+\documentclass[a5paper]{article}
+
+%-------------------------------------------------------------------------------
+% PACKAGES
+%-------------------------------------------------------------------------------
+
+% Set page geometry: A5 paper with no margins so the background can fill the page.
+\usepackage[a5paper, margin=0cm]{geometry}
+
+% For including graphics.
+\usepackage{graphicx}
+
+% For advanced positioning of elements on the page.
+% The 'overlay' and 'remember picture' options are essential for this task.
+\usepackage{tikz}
+\usetikzlibrary{calc} % Needed for coordinate calculations
+
+% For proper handling of French characters and accents.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+%-------------------------------------------------------------------------------
+% DOCUMENT
+%-------------------------------------------------------------------------------
+
+\begin{document}
+
+% Remove page numbers and any other headers/footers.
+\pagestyle{empty}
+
+% Use a tikzpicture environment that covers the entire page to place all elements.
+\begin{tikzpicture}[remember picture, overlay]
+
+    % 1. BACKGROUND IMAGE
+    % Place the background image node at the center of the page.
+    % Make it fill the entire paper width and height.
+    % 'inner sep=0' removes padding around the image.
+    \node[at=(current page.center), inner sep=0pt] {
+        \includegraphics[width=\paperwidth, height=\paperheight]{back-cover-image-3.png}
+    };
+
+    % 2. DEFINE THE SAFE ZONE
+    % Define coordinates for the corners of the content area, respecting the 2cm margin.
+    % This creates a "safe zone" inside which the text and logo will be placed.
+    \coordinate (SafeZoneTopLeft)     at ($(current page.north west) + (2cm, -2cm)$);
+    \coordinate (SafeZoneBottomRight) at ($(current page.south east) + (-2cm, 2cm)$);
+
+    % Define coordinates for the top-center and bottom-center of the safe zone.
+    % These will be used to vertically position the logo.
+    \coordinate (SafeZoneTopCenter)   at ($(SafeZoneTopLeft)!.5!(SafeZoneTopLeft -| SafeZoneBottomRight)$);
+    \coordinate (SafeZoneBottomCenter)at ($(SafeZoneBottomRight)!.5!(SafeZoneBottomRight -| SafeZoneTopLeft)$);
+
+    % 3. PLACE THE TEXT BOX
+    % Place a text node in the top-left corner of the safe zone.
+    % 'anchor=north west' ensures the top-left of the box is at the specified coordinate.
+    % 'align=left' respects the newlines (\\).
+    % 'text=white' sets the color. You can change this (e.g., text=black).
+    \node[
+        anchor=north west,
+        align=left,
+        text=white,
+        font=\sffamily % Using a sans-serif font, often looks better on covers
+    ] at (SafeZoneTopLeft) {
+        Un livre qui n'en est pas un.\\
+        On ne l’ouvre pas pour le lire ou pour apprendre.\\
+        On l’ouvre pour se souvenir.\\\\
+        Derrière chaque coup, chaque pièce déplacée,\\
+        il y a Christophe — Krystof126.
+    };
+
+    % 4. PLACE THE LOGO IMAGE
+    % Calculate the target position: 40% (0.4) of the way down from the top-center
+    % to the bottom-center of the safe zone. This centers it horizontally
+    % and places it at the correct vertical position within the margins.
+    \node[
+        inner sep=0pt % No padding around the logo
+    ] at ($(SafeZoneTopCenter)!0.33!(SafeZoneBottomCenter)$) {
+        % You can change the width of the logo here if needed.
+        \includegraphics[width=6cm]{krystof126-logo.png}
+    };
+
+\end{tikzpicture}
+
+\end{document}
