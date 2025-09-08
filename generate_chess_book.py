@@ -1238,6 +1238,7 @@ def _generate_final_page():
     king_symbol = r"\resizebox{!}{3cm}{{\WhiteKingOnBlack}}"
 
     return dedent(fr'''
+        \newpage\thispagestyle{{empty}}\mbox{{}}
         \cleardoublepage
         \thispagestyle{{empty}}
         \vspace*{{\stretch{{1}}}}
