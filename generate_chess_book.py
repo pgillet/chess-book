@@ -1238,6 +1238,8 @@ def _generate_notation_appendix(notation_type, lang='en'):
             \item {msg['appendix_promotion_text']}
             \item {msg['appendix_disambiguation']}
         \end{{itemize}}
+        
+        \newpage
 
         \subsubsection*{{{msg['appendix_examples_title']}}}
         \begin{{itemize}}[leftmargin=*, noitemsep, topsep=0.5ex]
@@ -1249,6 +1251,8 @@ def _generate_notation_appendix(notation_type, lang='en'):
             \item {ex_check}
             \item {ex_mate}
         \end{{itemize}}
+        
+        \newpage\thispagestyle{{empty}}\mbox{{}}
     ''')
 
 
