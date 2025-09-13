@@ -1175,14 +1175,28 @@ def _generate_simple_title_page(title, subtitle, author):
 
 def _generate_notation_appendix(notation_type, lang='en'):
     """
-    Generates a unified LaTeX appendix explaining chess notation.
-    The title is now invisible on the page but appears in the header.
+    Generates a unified LaTeX appendix explaining chess notation, with comprehensive examples.
     """
     msg = MESSAGES
     title = msg['appendix_notation_title']
     intro = msg['appendix_intro']
     special_moves_title = msg['appendix_special_moves']
     subtitle = msg['appendix_combined_subtitle']
+
+    # Dynamically create example notations
+    knight_letter = msg['piece_letters'].get('N', 'N')
+    queen_letter = msg['piece_letters'].get('Q', 'Q')
+    knight_figurine = _get_chess_figurine('N')
+    queen_figurine = _get_chess_figurine('Q')
+
+    # Format each example using the loaded message templates
+    ex_move = msg['appendix_example_move'].format(algebraic=f"{knight_letter}f3", figurine=f"{knight_figurine}f3")
+    ex_capture = msg['appendix_example_capture'].format(algebraic=f"{knight_letter}xf3", figurine=f"{knight_figurine}xf3")
+    ex_k_castle = msg['appendix_example_kingside_castle']
+    ex_q_castle = msg['appendix_example_queenside_castle']
+    ex_promo = msg['appendix_example_promotion'].format(algebraic=f"e8={queen_letter}", figurine=f"e8={queen_figurine}")
+    ex_check = msg['appendix_example_check'].format(algebraic=f"{queen_letter}h5", figurine=f"{queen_figurine}h5")
+    ex_mate = msg['appendix_example_checkmate'].format(algebraic=f"{queen_letter}h7", figurine=f"{queen_figurine}h7")
 
     piece_table = dedent(fr'''
         \begin{{tabular}}{{l c c}}
@@ -1198,10 +1212,8 @@ def _generate_notation_appendix(notation_type, lang='en'):
 
     return dedent(fr'''
         \cleardoublepage
-        % The section command is now empty to make the title invisible.
         \section*{{{''}}}
         \addcontentsline{{toc}}{{section}}{{{title}}}
-        % Use \markright to place the title in the page header.
         \markright{{{title}}}
         \thispagestyle{{fancy}}
 
@@ -1218,7 +1230,7 @@ def _generate_notation_appendix(notation_type, lang='en'):
         {piece_table}
 
         \subsubsection*{{{special_moves_title}}}
-        \begin{{itemize}}[leftmargin=*]
+        \begin{{itemize}}[leftmargin=*, noitemsep, topsep=0.5ex]
             \item {msg['appendix_capture_text']}
             \item {msg['appendix_en_passant_text']}
             \item {msg['appendix_check_text']}
@@ -1226,9 +1238,17 @@ def _generate_notation_appendix(notation_type, lang='en'):
             \item {msg['appendix_promotion_text']}
             \item {msg['appendix_disambiguation']}
         \end{{itemize}}
-        
-        \newpage\thispagestyle{{empty}}\mbox{{}}
-        \cleardoublepage
+
+        \subsubsection*{{{msg['appendix_examples_title']}}}
+        \begin{{itemize}}[leftmargin=*, noitemsep, topsep=0.5ex]
+            \item {ex_move}
+            \item {ex_capture}
+            \item {ex_k_castle}
+            \item {ex_q_castle}
+            \item {ex_promo}
+            \item {ex_check}
+            \item {ex_mate}
+        \end{{itemize}}
     ''')
 
 
