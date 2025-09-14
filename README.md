@@ -1,7 +1,3 @@
-Of course. Here is a comprehensive README file in markdown that outlines the complete process for creating your personalized chess book.
-
------
-
 # Chess Book Generator ♟️
 
 This project provides a complete toolchain to fetch your chess games from Chess.com, analyze and select the best ones, and compile them into a beautifully formatted, print-ready PDF book.
