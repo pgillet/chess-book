@@ -10,6 +10,23 @@ The process is broken down into three main steps:
 
 -----
 
+## Prerequisites
+
+Before you begin, ensure you have the following software installed on your system.
+
+  * **Python**: Version 3.13 or newer.
+  * **Python Libraries**: You can install the required libraries using pip:
+    ```shell
+    pip install requests python-chess
+    ```
+  * **Stockfish Chess Engine**: The analysis script requires the Stockfish engine. You can download it from the [official Stockfish website](https://stockfishchess.org/download/). Make sure to update the `ENGINE_PATH` variable in the scripts to point to your Stockfish executable.
+  * **LaTeX Distribution**: To compile the `.tex` files into a PDF, you need a LaTeX distribution.
+      * **Windows**: [MiKTeX](https://miktex.org/download)
+      * **macOS**: [MacTeX](https://www.tug.org/mactex/downloading.html)
+      * **Linux**: TeX Live (usually available through your package manager, e.g., `sudo apt-get install texlive-full`).
+
+-----
+
 ## Step 1: Fetch Your Games from Chess.com
 
 First, download all your played games into a single PGN file. The `chesscom_fetch.py` script handles this by accessing the public Chess.com API.
@@ -72,12 +89,6 @@ python select_top_games.py export <database_file> <output_pgn_file> -n <number> 
 
     ```shell
     python select_top_games.py export analysis.db top_10_recent_mates.pgn -n 10 --sort_by game_datetime:desc
-    ```
-    
-  * **To get the 15 lowest CPL games, sorted by date**
-
-    ```shell
-    python select_top_games.py export analysis.db top_15_low_cpl.pgn -n 15 --sort_by avg_cpl:asc game_datetime:asc
     ```
 
 This will generate a smaller, curated PGN file (e.g., `top_5_quality.pgn`) that you will use in the final step.
