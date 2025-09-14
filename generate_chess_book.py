@@ -1424,6 +1424,9 @@ def generate_chess_book(args):
         tex_master.append(_generate_notation_appendix(args.notation_type, args.language))
         tex_master.append(_generate_time_controls_explanation_latex(unique_time_controls, args.language))
 
+    tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
+    tex_master.append(r"\cleardoublepage")
+
     for idx, game in enumerate(games):
         try:
             print(MESSAGES['exporting_game'].format(current_game=idx + 1, total_games=len(games)))
