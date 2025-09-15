@@ -100,8 +100,8 @@ The main table is named `games`, and it contains useful columns such as `quality
 
 ```sql
 SELECT raw_pgn FROM games
-WHERE ((White = 'Krystof126' AND Winner = 'White' AND BlackElo > 1000) 
-    OR (Black = 'Krystof126' AND Winner = 'Black' AND WhiteElo > 1000)) 
+WHERE ((White = 'Krystof126' AND Winner = 'White' AND BlackElo > 1500) 
+    OR (Black = 'Krystof126' AND Winner = 'Black' AND WhiteElo > 1500)) 
   AND Termination LIKE '%by checkmate'
 ORDER BY quality_score DESC
 LIMIT 10;
