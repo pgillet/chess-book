@@ -987,8 +987,6 @@ def generate_how_to_read_section(tex_master, args, output_dir, engine):
     )
 
     tex_master.append(r"\input{how_to_read_example.tex}")
-    tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
-    tex_master.append(r"\cleardoublepage")
 
 
 def delete_output_directory(output_dir_path, lang='en'):
@@ -1211,7 +1209,7 @@ def _generate_notation_appendix(notation_type, lang='en'):
     ''')
 
     return dedent(fr'''
-        \cleardoublepage
+        \newpage
         \section*{{{''}}}
         \addcontentsline{{toc}}{{section}}{{{title}}}
         \markright{{{title}}}
@@ -1251,8 +1249,6 @@ def _generate_notation_appendix(notation_type, lang='en'):
             \item {ex_check}
             \item {ex_mate}
         \end{{itemize}}
-        
-        \newpage\thispagestyle{{empty}}\mbox{{}}
     ''')
 
 
@@ -1267,7 +1263,7 @@ def _generate_time_controls_explanation_latex(time_controls, lang='en'):
     formatted_tc_list = ", ".join([f"\\texttt{{{tc}}}" for tc in sorted(list(time_controls))])
 
     return dedent(fr'''
-        \cleardoublepage
+        \newpage
         \section*{{{title}}}
         \addcontentsline{{toc}}{{section}}{{{title}}}
         \markright{{{title}}}
