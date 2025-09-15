@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 import os
 import math  # Needed for standard deviation calculation
+import statistics
 
 # --- CONFIGURATION ---
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"
@@ -95,9 +96,10 @@ def analyze_game(game, engine):
 
 def calculate_game_score(game, analysis_results):
     """
-    Calculates a 'quality score' and returns a detailed dictionary of metrics,
-    disqualifying games that are too short.
+    Improved quality scoring for chess games.
+    Returns (score, metrics_dict).
     """
+
     if not analysis_results:
         return 0, {}
 
@@ -105,56 +107,69 @@ def calculate_game_score(game, analysis_results):
     moves = list(game.mainline_moves())
     num_moves = len(moves)
 
-    # Disqualify very short games
-    MINIMUM_MOVES = 20  # 10 full moves
-    if num_moves < MINIMUM_MOVES:
-        # Return a very low score to ensure this game is never in the top N
-        score = -1000
-        metrics = {
-            "white": headers.get("White", "?"), "black": headers.get("Black", "?"),
-            "result": headers.get("Result", "*"), "final_score": score, "avg_cpl": 0,
-            "cpl_std_dev": 0, "blunders": 0, "mistakes": 0, "length_score": -1000,
-            "result_bonus": 0, "consistency_bonus": 0, "white_cpl": 0, "black_cpl": 0
-        }
-        return score, metrics
-
-    # --- METRICS ---
+    # --- Collect CPLs ---
+    cpls = [d['cpl'] for d in analysis_results]
     white_cpls = [d['cpl'] for d in analysis_results if d['is_white_move']]
     black_cpls = [d['cpl'] for d in analysis_results if not d['is_white_move']]
+
+    # --- Basic stats ---
+    avg_cpl = sum(cpls) / len(cpls) if cpls else 0
+    cpl_std_dev = statistics.pstdev(cpls) if len(cpls) > 1 else 0
     white_cpl = sum(white_cpls) / len(white_cpls) if white_cpls else 0
     black_cpl = sum(black_cpls) / len(black_cpls) if black_cpls else 0
-    avg_cpl = (white_cpl + black_cpl) / 2
 
-    variance = ((white_cpl - avg_cpl) ** 2 + (black_cpl - avg_cpl) ** 2) / 2
-    cpl_std_dev = math.sqrt(variance)
+    # --- Blunders & mistakes ---
+    blunders = sum(1 for c in cpls if c >= 200)
+    mistakes = sum(1 for c in cpls if 100 <= c < 200)
 
-    blunders = sum(1 for d in analysis_results if d['cpl'] >= 200)
-    mistakes = sum(1 for d in analysis_results if 100 <= d['cpl'] < 200)
+    # --- Length bonus (smooth bell curve, peak ~60 moves) ---
+    length_bonus = 20 * math.exp(-((num_moves - 60) ** 2) / (2 * (30 ** 2)))
 
-    # Bonus for ideal length (no penalty here anymore)
-    length_score = 10 if 30 <= num_moves <= 120 else 0
+    # --- Result bonus (scaled by length factor) ---
+    length_factor = min(1.0, num_moves / 20)  # small games scale down bonus
+    if "checkmate" in headers.get("Termination", "").lower():
+        result_bonus = 20 * length_factor
+    elif headers.get("Result") in ["1-0", "0-1"]:
+        result_bonus = 5 * length_factor
+    else:
+        result_bonus = 0
 
-    result_bonus = 20 if "checkmate" in headers.get("Termination", "").lower() else (
-        5 if headers.get("Result") in ["1-0", "0-1"] else 0)
+    # --- Core scoring components ---
+    cpl_score = max(0, 100 - avg_cpl)            # accuracy
+    consistency_bonus = max(0, 15 - cpl_std_dev) # stability
+    excitement_score = min(20, blunders * 2 + mistakes)  # capped
 
-    # --- SCORING FORMULA ---
-    cpl_score = (100 - avg_cpl)
-    excitement_score = (blunders * 2) + (mistakes * 1)
-    consistency_bonus = max(0, 15 - cpl_std_dev)
+    # --- Combine ---
+    raw_score = cpl_score + consistency_bonus + excitement_score + length_bonus + result_bonus
 
-    final_score = cpl_score + excitement_score + length_score + result_bonus + consistency_bonus
+    # --- Penalize very short games ---
+    length_factor = min(1.0, num_moves / 40.0)  # scales up to 1.0 by 40 moves
+    penalized_score = raw_score * length_factor
 
+    # --- Normalize to 0–100 range ---
+    final_score = max(0, min(100, penalized_score))
+
+    # --- Package metrics ---
     metrics = {
-        "white": headers.get("White", "?"), "black": headers.get("Black", "?"),
-        "result": headers.get("Result", "*"), "avg_cpl": avg_cpl,
-        "cpl_std_dev": cpl_std_dev, "blunders": blunders, "mistakes": mistakes,
-        "length_score": length_score,
+        "white": headers.get("White", "?"),
+        "black": headers.get("Black", "?"),
+        "result": headers.get("Result", "*"),
+        "num_moves": num_moves,
+        "avg_cpl": avg_cpl,
+        "cpl_std_dev": cpl_std_dev,
+        "blunders": blunders,
+        "mistakes": mistakes,
+        "length_bonus": length_bonus,
         "result_bonus": result_bonus,
-        "consistency_bonus": consistency_bonus, "final_score": final_score,
-        "white_cpl": white_cpl, "black_cpl": black_cpl
+        "consistency_bonus": consistency_bonus,
+        "excitement_score": excitement_score,
+        "final_score": final_score,
+        "white_cpl": white_cpl,
+        "black_cpl": black_cpl,
     }
 
     return final_score, metrics
+
 
 
 def process_game(game, analysis_results, raw_pgn_str):
@@ -210,8 +225,7 @@ def print_game_analysis_summary(metrics):
     print(f"  CPL Std Dev: {metrics['cpl_std_dev']:.2f} (lower indicates more balanced play)")
     print(f"  Blunders: {metrics['blunders']}")
     print(f"  Mistakes: {metrics['mistakes']}")
-    # FIX: Changed 'length_bonus' to 'length_score' to match the new key.
-    print(f"  Length Score: {metrics['length_score']}")
+    print(f"  Length Bonus: {metrics['length_bonus']}")
     print(f"  Result Bonus: {metrics['result_bonus']}")
     print(f"  Consistency Bonus: {metrics['consistency_bonus']:.2f}")
     print("-" * 40 + "\n")
