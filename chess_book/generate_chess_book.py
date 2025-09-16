@@ -219,6 +219,15 @@ def escape_latex_special_chars(text):
     return text
 
 
+def _footnote_text(annotated, key, protect=False):
+    """Return a LaTeX footnote string when annotations are enabled."""
+    if not annotated:
+        return ""
+    note = MESSAGES.get(key, "")
+    footnote_cmd = "\\protect\\footnote" if protect else "\\footnote"
+    return f"{footnote_cmd}{{{note}}}"
+
+
 def get_eval_string(score, lang='en'):
     """Formats a Stockfish score object into a human-readable string, now with correct mate signs."""
     if score is None:
@@ -295,6 +304,65 @@ def _get_chess_figurine(piece_symbol, default_value="", inline=True):
     return figurine_cmd
 
 
+def _format_move_for_notation(board, move, notation_type):
+    """Format a move into escaped LaTeX respecting the chosen notation."""
+    if move is None:
+        return ""
+    san = board.san(move)
+    translated_san = translate_san_move(san)
+    if notation_type == "algebraic":
+        return escape_latex_special_chars(translated_san)
+    if notation_type == "figurine":
+        if move.promotion:
+            return escape_latex_special_chars(translated_san)
+        piece = board.piece_at(move.from_square)
+        if piece and piece.piece_type != chess.PAWN:
+            figurine_cmd = _get_chess_figurine(piece.symbol())
+            san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
+            return figurine_cmd + escape_latex_special_chars(san_suffix)
+    return escape_latex_special_chars(san if notation_type == "figurine" else translated_san)
+
+
+def _iter_formatted_move_pairs(board, moves, notation_type):
+    """Yield formatted move strings for each white/black pair."""
+    for index in range(0, len(moves), 2):
+        white_move = moves[index]
+        white_str = _format_move_for_notation(board, white_move, notation_type)
+        board.push(white_move)
+
+        black_str = ""
+        if index + 1 < len(moves):
+            black_move = moves[index + 1]
+            black_str = _format_move_for_notation(board, black_move, notation_type)
+            board.push(black_move)
+
+        yield index // 2 + 1, white_str, black_str
+
+
+def _format_inline_move_sequence(board, moves, notation_type):
+    """Return a compact inline move string such as '1. e4 e5 2. …'."""
+    parts = []
+    for move_number, white_str, black_str in _iter_formatted_move_pairs(board, moves, notation_type):
+        parts.append(f"{move_number}.")
+        parts.append(white_str)
+        if black_str:
+            parts.append(black_str)
+    return " ".join(parts).strip()
+
+
+def _mark_fields_for_move(board, move):
+    """Build the markfields option for a chessboard diagram."""
+    if not move:
+        return ""
+    if board.is_castling(move):
+        if board.is_kingside_castling(move):
+            rook_square = chess.H1 if board.turn == chess.WHITE else chess.H8
+        else:
+            rook_square = chess.A1 if board.turn == chess.WHITE else chess.A8
+        return f"markfields={{{chess.square_name(move.from_square)},{chess.square_name(rook_square)}}}"
+    return f"markfields={{{chess.square_name(move.from_square)},{chess.square_name(move.to_square)}}}"
+
+
 def format_pgn_date(pgn_date, lang='en'):
     """Formats a PGN date string (YYYY.MM.DD) into a localized format."""
     try:
@@ -366,10 +434,8 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
     if not opening_name or not opening_moves:
         return []
 
-    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
-
     # The subsection is now invisible, serving only as an anchor for the footnote.
-    latex_lines.append(f"\\subsection*{{{''}}}{fn('fn_opening_section')}")
+    latex_lines.append(f"\\subsection*{{{''}}}{_footnote_text(annotated, 'fn_opening_section')}")
 
     marked_sq_option = ""
     try:
@@ -380,47 +446,15 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
 
         opening_mainline_moves = list(temp_game.mainline_moves())
 
+        board_for_display = temp_game.board()
+        opening_moves_latex = _format_inline_move_sequence(board_for_display, opening_mainline_moves, notation_type)
+        fen = board_for_display.fen()
+
         if opening_mainline_moves:
-            last_move = opening_mainline_moves[-1]
             board_before_last_move = temp_game.board()
             for move in opening_mainline_moves[:-1]:
                 board_before_last_move.push(move)
-
-            if board_before_last_move.is_castling(last_move):
-                king_from_sq = last_move.from_square
-                rook_from_sq = chess.H1 if board_before_last_move.is_kingside_castling(last_move) else chess.A1
-                if board_before_last_move.turn == chess.BLACK:
-                    rook_from_sq = chess.H8 if board_before_last_move.is_kingside_castling(last_move) else chess.A8
-                marked_sq_option = f"markfields={{{chess.square_name(king_from_sq)},{chess.square_name(rook_from_sq)}}}"
-            else:
-                marked_sq_option = f"markfields={{{chess.square_name(last_move.from_square)},{chess.square_name(last_move.to_square)}}}"
-
-        board = temp_game.board()
-        for move in opening_mainline_moves:
-            board.push(move)
-        fen = board.fen()
-
-        temp_board_for_notation = temp_game.board()
-        formatted_moves_parts = []
-        for i, move in enumerate(opening_mainline_moves):
-            if i % 2 == 0:
-                formatted_moves_parts.append(f"{(i // 2) + 1}.")
-
-            san = temp_board_for_notation.san(move)
-            if notation_type == "figurine":
-                piece = temp_board_for_notation.piece_at(move.from_square)
-                if piece and piece.piece_type != chess.PAWN:
-                    figurine_cmd = _get_chess_figurine(piece.symbol())
-                    san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
-                    formatted_moves_parts.append(figurine_cmd + escape_latex_special_chars(san_suffix))
-                else:
-                    formatted_moves_parts.append(escape_latex_special_chars(san))
-            else:  # algebraic
-                formatted_moves_parts.append(escape_latex_special_chars(translate_san_move(san)))
-
-            temp_board_for_notation.push(move)
-
-        opening_moves_latex = " ".join(formatted_moves_parts)
+            marked_sq_option = _mark_fields_for_move(board_before_last_move, opening_mainline_moves[-1])
 
     except Exception:
         fen = chess.Board().fen()
@@ -465,133 +499,36 @@ def _generate_opening_info_latex(game, notation_type, lang='en', annotated=False
 
 
 def _generate_game_notation_latex(game, notation_type, lang='en', annotated=False):
-    """
-    Generates the LaTeX for the game notation. For long games, it uses a two-column
-    tabbing environment for perfect alignment and minimal spacing.
-    """
-    footnote = ""
-    if annotated:
-        key = 'fn_notation_figurine' if notation_type == 'figurine' else 'fn_notation_algebraic'
-        footnote = f"\\footnote{{{MESSAGES[key]}}}"
-
-    latex_lines = [f"\\subsection*{{{''}}}{footnote}"]
+    """Generate the LaTeX blocks that display the game notation."""
+    footnote_key = 'fn_notation_figurine' if notation_type == 'figurine' else 'fn_notation_algebraic'
+    latex_lines = [f"\\subsection*{{{''}}}{_footnote_text(annotated, footnote_key)}"]
 
     moves = list(game.mainline_moves())
-    # Handle games with no moves to prevent LaTeX errors.
     if not moves:
         return latex_lines
 
     num_full_moves = (len(moves) + 1) // 2
-
-    # The annotated example is always single-column.
     use_two_columns = num_full_moves > TWO_COLUMN_THRESHOLD and not annotated
 
     if use_two_columns:
-        # --- TWO-COLUMN LAYOUT using tabbing for minimal, aligned columns ---
         latex_lines.append(r"\begin{multicols}{2}[\noindent]")
         latex_lines.append(r"\begin{tabbing}")
-        # It sets tab stops based on the width of realistic wide moves, creating tight columns.
         latex_lines.append(r"888.\ \= O-O-O\ \= O-O-O \kill")
 
-        temp_board = game.board()
-        for i in range(0, len(moves), 2):
-            move_number_str = f"{(i // 2) + 1}."
-
-            white_move = moves[i]
-            white_san = temp_board.san(white_move)
-
-            black_san = ""
-            if (i + 1) < len(moves):
-                temp_board.push(white_move)
-                black_move = moves[i + 1]
-                black_san = temp_board.san(black_move)
-                temp_board.pop()
-
-            def get_formatted_san(san, move):
-                if not san: return ""
-                # Apply translation for algebraic notation
-                if notation_type == "algebraic":
-                    san = translate_san_move(san)
-
-                if notation_type == "figurine":
-                    # For promotions, use the translated algebraic notation as per convention.
-                    if move.promotion:
-                        return escape_latex_special_chars(translate_san_move(san))
-
-                    # For all other moves, use the standard figurine logic.
-                    piece = temp_board.piece_at(move.from_square)
-                    if piece and piece.piece_type != chess.PAWN:
-                        figurine_cmd = _get_chess_figurine(piece.symbol())
-                        san_suffix = san[1:] if san and san[0].upper() in 'NBRQK' else san
-                        return figurine_cmd + escape_latex_special_chars(san_suffix)
-
-                return escape_latex_special_chars(san)
-
-            white_str = get_formatted_san(white_san, white_move)
-            black_str = get_formatted_san(black_san, moves[i + 1]) if black_san else ""
-
-            # The first item on the line is NOT preceded by \>
-            latex_lines.append(f"{move_number_str} \\> {white_str} \\> {black_str} \\\\")
-
-            temp_board.push(white_move)
-            if (i + 1) < len(moves):
-                temp_board.push(moves[i + 1])
+        board = game.board()
+        for move_number, white_str, black_str in _iter_formatted_move_pairs(board, moves, notation_type):
+            latex_lines.append(f"{move_number}. \\> {white_str} \\> {black_str} \\\\")
 
         latex_lines.append(r"\end{tabbing}")
         latex_lines.append(r"\end{multicols}")
-
     else:
-        # --- SINGLE-COLUMN LAYOUT FOR SHORTER GAMES (Unchanged) ---
         latex_lines.append("\\noindent")
         latex_lines.append("\\begin{tabularx}{\\linewidth}{l l l}")
         board = game.board()
+        moves_to_render = moves[:16] if annotated and len(moves) > 16 else moves
 
-        if annotated and len(moves) > 16:
-            moves = moves[:16]
-
-        for i in range(0, len(moves), 2):
-            move_number = (i // 2) + 1
-            white_move = moves[i]
-            white_san = board.san(white_move)
-            white_move_str_latex = ""
-            if notation_type == "figurine":
-                if white_move.promotion:
-                    white_move_str_latex = escape_latex_special_chars(translate_san_move(white_san))
-                else:
-                    moving_piece = board.piece_at(white_move.from_square)
-                    if moving_piece and moving_piece.piece_type != chess.PAWN:
-                        figurine_cmd = _get_chess_figurine(moving_piece.symbol())
-                        san_suffix = white_san[1:] if white_san and white_san[0].upper() in 'NBRQK' else white_san
-                        white_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
-                    else:
-                        white_move_str_latex = escape_latex_special_chars(white_san)
-            else:
-                white_move_str_latex = escape_latex_special_chars(translate_san_move(white_san))
-            board.push(white_move)
-
-            black_move_str_latex = ""
-            if (i + 1) < len(moves):
-                black_move = moves[i + 1]
-                black_san = board.san(black_move)
-                # Apply translation for algebraic notation
-                if notation_type == "algebraic":
-                    black_san = translate_san_move(black_san)
-
-                if notation_type == "figurine":
-                    if black_move.promotion:
-                        black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
-                    else:
-                        moving_piece = board.piece_at(black_move.from_square)
-                        if moving_piece and moving_piece.piece_type != chess.PAWN:
-                            figurine_cmd = _get_chess_figurine(moving_piece.symbol())
-                            san_suffix = black_san[1:] if black_san and black_san[0].upper() in 'NBRQK' else black_san
-                            black_move_str_latex = figurine_cmd + escape_latex_special_chars(san_suffix)
-                        else:
-                            black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
-                else:
-                    black_move_str_latex = escape_latex_special_chars(translate_san_move(black_san))
-                board.push(black_move)
-            latex_lines.append(f"{move_number}. & {white_move_str_latex} & {black_move_str_latex}\\\\")
+        for move_number, white_str, black_str in _iter_formatted_move_pairs(board, moves_to_render, notation_type):
+            latex_lines.append(f"{move_number}. & {white_str} & {black_str}\\\\")
         latex_lines.append("\\end{tabularx}")
 
     return latex_lines
@@ -619,10 +556,7 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
 
 
 def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
-    """
-    Generates the LaTeX for the analysis summary section, formatted as a table.
-    """
-    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
+    """Generate the LaTeX table summarising Stockfish analysis results."""
     if not analysis_data:
         return []
     total_moves_analyzed = len(analysis_data)
@@ -638,7 +572,7 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
     black_mistakes = sum(1 for d in analysis_data if not d['is_white_move'] and 100 <= d['cpl_for_move'] < 200)
     white_inaccuracies = sum(1 for d in analysis_data if d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
     black_inaccuracies = sum(1 for d in analysis_data if not d['is_white_move'] and 50 <= d['cpl_for_move'] < 100)
-    latex_lines = [f"\\subsection*{{{''}}}{fn('fn_analysis_summary')}"]
+    latex_lines = [f"\\subsection*{{{''}}}{_footnote_text(annotated, 'fn_analysis_summary')}"]
     header_metric = ""
     header_white = f"\\textbf{{{MESSAGES['table_white']}}}"
     header_black = f"\\textbf{{{MESSAGES['table_black']}}}"
@@ -658,10 +592,7 @@ def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
 
 
 def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope, lang='en', annotated=False, args=None):
-    """
-    Generates the LaTeX for move-by-move board displays, with correctly placed footnotes and check/checkmate markers.
-    """
-    fn = lambda key: f"\\protect\\footnote{{{MESSAGES[key]}}}" if annotated else ""
+    """Generate the LaTeX that renders side-by-side board diagrams for each move pair."""
     latex_lines = []
     if not analysis_data:
         return latex_lines
@@ -690,12 +621,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
         if white_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(white_move_obj))}"
-            if board_for_display.is_castling(white_move_obj):
-                king_from_sq, rook_from_sq = white_move_obj.from_square, chess.H1 if board_for_display.is_kingside_castling(
-                    white_move_obj) else chess.A1
-                marked_sq1 = f"markfields={{{chess.square_name(king_from_sq)},{chess.square_name(rook_from_sq)}}}"
-            else:
-                marked_sq1 = f"markfields={{{chess.square_name(white_move_obj.from_square)},{chess.square_name(white_move_obj.to_square)}}}"
+            marked_sq1 = _mark_fields_for_move(board_for_display, white_move_obj)
             board_for_display.push(white_move_obj)
             fen1 = board_for_display.board_fen()
 
@@ -709,12 +635,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
         if black_move_obj:
             current_move_pair_text += f" {escape_latex_special_chars(board_for_display.san(black_move_obj))}"
-            if board_for_display.is_castling(black_move_obj):
-                king_from_sq, rook_from_sq = black_move_obj.from_square, chess.H8 if board_for_display.is_kingside_castling(
-                    black_move_obj) else chess.A8
-                marked_sq2 = f"markfields={{{chess.square_name(king_from_sq)},{chess.square_name(rook_from_sq)}}}"
-            else:
-                marked_sq2 = f"markfields={{{chess.square_name(black_move_obj.from_square)},{chess.square_name(black_move_obj.to_square)}}}"
+            marked_sq2 = _mark_fields_for_move(board_for_display, black_move_obj)
             board_for_display.push(black_move_obj)
             fen2 = board_for_display.board_fen()
 
@@ -752,7 +673,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
         move_text = " ".join(move_parts)
 
-        move_title_footnote = fn('fn_move_reminder') if i == 0 and annotated else ""
+        move_title_footnote = _footnote_text(annotated and i == 0, 'fn_move_reminder', protect=True)
         latex_lines.append(f"\\subsubsection*{{{move_text}{move_title_footnote}}}")
 
         deferred_footnotetexts = []
@@ -825,10 +746,7 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
 
 def _generate_game_summary_latex(game, lang='en', annotated=False):
-    """
-    Generates the LaTeX for the game's summary box (players, date, event).
-    """
-    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
+    """Generate the LaTeX snippet describing the players, event, and date."""
     latex_lines = []
     white = game.headers.get("White", MESSAGES['white_player_default'])
     black = game.headers.get("Black", MESSAGES['black_player_default'])
@@ -843,16 +761,26 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     date_escaped = escape_latex_special_chars(formatted_date)
     event_escaped = escape_latex_special_chars(event)
     tc_escaped = escape_latex_special_chars(f"({standard_tc})")
-    winner_symbol = r" $\star$"
-    if annotated:
-        winner_symbol += fn('fn_winner')
+    winner_symbol = r" $\star$" + _footnote_text(annotated, 'fn_winner')
     if result == "1-0":
         white_escaped += winner_symbol
     elif result == "0-1":
         black_escaped += winner_symbol
     latex_lines.append(r"\vspace{0.5\baselineskip}")
-    white_line = fr"\noindent $\Box$ \textbf{{{white_escaped}}}{fn('fn_white_player')} \hfill \textit{{{date_escaped}}}{fn('fn_date')} \\"
-    black_line = fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}}{fn('fn_black_player')} \hfill \textit{{{event_escaped}}}{fn('fn_event')} {tc_escaped}{fn('fn_time_control')}"
+    white_line = "\\noindent $\\Box$ \\textbf{{{}}}{} \\hfill \\textit{{{}}}{} \\\\".format(
+        white_escaped,
+        _footnote_text(annotated, 'fn_white_player'),
+        date_escaped,
+        _footnote_text(annotated, 'fn_date'),
+    )
+    black_line = "\\noindent $\\blacksquare$ \\textbf{{{}}}{} \\hfill \\textit{{{}}}{} {}{}".format(
+        black_escaped,
+        _footnote_text(annotated, 'fn_black_player'),
+        event_escaped,
+        _footnote_text(annotated, 'fn_event'),
+        tc_escaped,
+        _footnote_text(annotated, 'fn_time_control'),
+    )
     latex_lines.append(white_line)
     latex_lines.append(black_line)
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
