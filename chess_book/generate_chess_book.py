@@ -1036,21 +1036,20 @@ def _format_dedication_epigraph_txt(content):
 
 
 def _format_preface_txt(content, lang):
-    """Formats raw text for a preface page (justified with a title)."""
+    """Formats raw text for a preface page (justified with a title), allowing LaTeX commands."""
     title = MESSAGES['preface']
 
-    # Process text to respect paragraph breaks
+    # Process text to respect paragraph breaks, without escaping LaTeX commands.
+    # The user is responsible for correctly formatting the LaTeX in the preface.txt.
     paragraphs = content.strip().split('\n\n')
-    content_processed = r"\par ".join([escape_latex_special_chars(p) for p in paragraphs])
+    content_processed = r"\par ".join(paragraphs)
 
     return (
             r"\cleardoublepage" + "\n" +
             f"\\section*{{{title}}}" + "\n" +
             f"\\addcontentsline{{toc}}{{section}}{{{title}}}" + "\n" +
-            # This command clears the right-hand header for this section.
             f"\\markright{{{''}}}" + "\n" +
             r"\thispagestyle{fancy}" + "\n" +
-            # Add vertical space after the title. Adjust '2\baselineskip' for more/less space.
             r"\vspace*{2\baselineskip}" + "\n" +
             content_processed + "\n"
     )
