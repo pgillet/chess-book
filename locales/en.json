@@ -62,7 +62,7 @@
   "fn_winner": "A star symbol appears next to the winner of the game.",
   "fn_date": "The date the game was played.",
   "fn_event": "The event or tournament name.",
-  "fn_time_control": "The time control for the game (e.g., 60+1 means 60 seconds base time with a 1-second increment per move).",
+  "fn_time_control": "Indicates the time control for the game, followed by its classification (e.g., Bullet, Blitz, Rapid). The format X+Y means each player starts with X seconds and gains an additional Y seconds after each move.",
   "fn_notation_algebraic": "The game moves are listed in Standard Algebraic Notation.",
   "fn_notation_figurine": "The game moves are listed in figurine notation, where a symbol represents each piece.",
   "fn_analysis_summary": "A summary of the computer analysis, including average centipawn loss (CPL) for each player. Lower CPL is better.",

@@ -62,7 +62,7 @@
   "fn_winner": "Une étoile apparaît à côté du nom du vainqueur de la partie.",
   "fn_date": "La date à laquelle la partie a été jouée.",
   "fn_event": "Le nom de l'événement ou du tournoi.",
-  "fn_time_control": "Le contrôle de temps de la partie (par ex., 60+1 signifie 60 secondes de base avec un incrément de 1 seconde par coup).",
+  "fn_time_control": "Indique le contrôle de temps de la partie, suivi de sa classification (par ex., Bullet, Blitz, Rapide). Le format X+Y signifie que chaque joueur dispose de X secondes au départ, avec un incrément de Y secondes après chaque coup.",
   "fn_notation_algebraic": "Les coups de la partie sont listés en notation algébrique standard.",
   "fn_notation_figurine": "Les coups de la partie sont listés en notation figurine, où un symbole représente chaque pièce.",
   "fn_analysis_summary": "Un résumé de l'analyse par ordinateur, incluant la perte moyenne de centipions (CPL) pour chaque joueur. Un CPL plus bas est meilleur.",
