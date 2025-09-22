@@ -121,5 +121,10 @@
   "time_controls_increment_desc": "The format \\texttt{X+Y} (e.g., 60+1) indicates an \\textit{increment} control. Each player starts with \\texttt{X} seconds on their clock, and after every move they make, an additional \\texttt{Y} seconds are added to their remaining time. This ensures that a player will never run out of time as long as they move quickly enough.",
   "time_controls_standard_desc": "A single number (e.g., 300) indicates the total number of seconds each player has for the entire game, without any increment.",
   "time_controls_daily_desc": "The format \\texttt{1/86400} represents a \\textit{daily} or \\textit{correspondence} time control, where players have one day (86,400 seconds) to make each move.",
-  "time_controls_list_title": "Time Controls in This Collection:"
+  "time_controls_list_title": "Time Controls in This Collection:",
+  "tc_bullet": "Bullet",
+  "tc_blitz": "Blitz",
+  "tc_rapid": "Rapid",
+  "tc_daily": "Daily",
+  "tc_unknown": "Unknown"
 }

@@ -122,5 +122,10 @@
   "time_controls_increment_desc": "Le format \\texttt{X+Y} (par ex., 60+1) indique un contrôle de temps avec \\textit{incrément}. Chaque joueur commence avec \\texttt{X} secondes à son horloge, et après chaque coup joué, \\texttt{Y} secondes supplémentaires sont ajoutées à son temps restant. Cela garantit qu'un joueur ne perdra jamais au temps tant qu'il joue assez vite.",
   "time_controls_standard_desc": "Un nombre unique (par ex., 300) indique le nombre total de secondes dont dispose chaque joueur pour toute la partie, sans aucun incrément.",
   "time_controls_daily_desc": "Le format \\texttt{1/86400} représente un contrôle de temps \\textit{journalier} ou par \\textit{correspondance}, où les joueurs disposent d'un jour (86 400 secondes) pour jouer chaque coup.",
-  "time_controls_list_title": "Contrôles de Temps dans cette Collection :"
+  "time_controls_list_title": "Contrôles de Temps dans cette Collection :",
+  "tc_bullet": "Bullet",
+  "tc_blitz": "Blitz",
+  "tc_rapid": "Rapide",
+  "tc_daily": "Quotidien",
+  "tc_unknown": "Inconnu"
 }

@@ -746,7 +746,10 @@ def _generate_board_analysis_latex(game, analysis_data, show_mover, board_scope,
 
 
 def _generate_game_summary_latex(game, lang='en', annotated=False):
-    """Generate the LaTeX snippet describing the players, event, and date."""
+    """
+    Generates the LaTeX for the game's summary box (players, date, event).
+    """
+    fn = lambda key: f"\\footnote{{{MESSAGES[key]}}}" if annotated else ""
     latex_lines = []
     white = game.headers.get("White", MESSAGES['white_player_default'])
     black = game.headers.get("Black", MESSAGES['black_player_default'])
@@ -754,33 +757,31 @@ def _generate_game_summary_latex(game, lang='en', annotated=False):
     event = game.headers.get("Event", "Casual Game")
     result = game.headers.get("Result", "*")
     time_control = game.headers.get("TimeControl", "?")
+
+    # Get the translated, standard time control and its category
     standard_tc = translate_time_control(time_control)
+    tc_category = _get_time_control_category(time_control)
+
     formatted_date = format_pgn_date(date, lang)
     white_escaped = escape_latex_special_chars(white)
     black_escaped = escape_latex_special_chars(black)
     date_escaped = escape_latex_special_chars(formatted_date)
     event_escaped = escape_latex_special_chars(event)
-    tc_escaped = escape_latex_special_chars(f"({standard_tc})")
-    winner_symbol = r" $\star$" + _footnote_text(annotated, 'fn_winner')
+
+    # Combine the time control and its category
+    tc_escaped = escape_latex_special_chars(f"({standard_tc} | {tc_category})")
+
+    winner_symbol = r" $\star$"
+    if annotated:
+        winner_symbol += fn('fn_winner')
     if result == "1-0":
         white_escaped += winner_symbol
     elif result == "0-1":
         black_escaped += winner_symbol
+
     latex_lines.append(r"\vspace{0.5\baselineskip}")
-    white_line = "\\noindent $\\Box$ \\textbf{{{}}}{} \\hfill \\textit{{{}}}{} \\\\".format(
-        white_escaped,
-        _footnote_text(annotated, 'fn_white_player'),
-        date_escaped,
-        _footnote_text(annotated, 'fn_date'),
-    )
-    black_line = "\\noindent $\\blacksquare$ \\textbf{{{}}}{} \\hfill \\textit{{{}}}{} {}{}".format(
-        black_escaped,
-        _footnote_text(annotated, 'fn_black_player'),
-        event_escaped,
-        _footnote_text(annotated, 'fn_event'),
-        tc_escaped,
-        _footnote_text(annotated, 'fn_time_control'),
-    )
+    white_line = fr"\noindent $\Box$ \textbf{{{white_escaped}}}{fn('fn_white_player')} \hfill \textit{{{date_escaped}}}{fn('fn_date')} \\"
+    black_line = fr"\noindent $\blacksquare$ \textbf{{{black_escaped}}}{fn('fn_black_player')} \hfill \textit{{{event_escaped}}}{fn('fn_event')} {tc_escaped}{fn('fn_time_control')}"
     latex_lines.append(white_line)
     latex_lines.append(black_line)
     latex_lines.append(r"\vspace{0.5\baselineskip}\hrule\vspace{\baselineskip}")
@@ -812,6 +813,37 @@ def translate_time_control(non_standard_tc: str) -> str:
         return str(base_time)
     except ValueError:
         return "?"
+
+
+def _get_time_control_category(time_control_str):
+    """
+    Classifies a PGN time control string into a category (Bullet, Blitz, Rapid, Daily).
+    """
+    if not time_control_str or time_control_str == "?":
+        return MESSAGES.get('tc_unknown', 'Unknown')
+
+    if '/' in time_control_str:
+        return MESSAGES.get('tc_daily', 'Daily')
+
+    try:
+        if '+' in time_control_str:
+            base, increment = map(int, time_control_str.split('+'))
+            # Estimate total time for an average 40-move game
+            total_time = base + (increment * 40)
+        else:
+            total_time = int(time_control_str)
+
+        if total_time < 180:  # Less than 3 minutes
+            return MESSAGES.get('tc_bullet', 'Bullet')
+        elif total_time < 600:  # Less than 10 minutes
+            return MESSAGES.get('tc_blitz', 'Blitz')
+        elif total_time < 3600:  # Less than 60 minutes
+            return MESSAGES.get('tc_rapid', 'Rapid')
+        else:
+            return MESSAGES.get('tc_classical', 'Classical')
+
+    except (ValueError, IndexError):
+        return MESSAGES.get('tc_unknown', 'Unknown')
 
 
 def _generate_termination_latex(game, lang='en'):
@@ -1181,16 +1213,24 @@ def _generate_notation_appendix(notation_type, lang='en'):
 
 def _generate_time_controls_explanation_latex(time_controls, lang='en'):
     """
-    Generates a LaTeX page explaining the time controls found in the PGN.
+    Generates a LaTeX page explaining the time controls found in the PGN,
+    with the list of TCs formatted as a bulleted list.
     """
     msg = MESSAGES
     title = msg['time_controls_title']
 
-    # Format the list of unique time controls for display
-    formatted_tc_list = ", ".join([f"\\texttt{{{tc}}}" for tc in sorted(list(time_controls))])
+    # Create a list of formatted strings for the bulleted list items
+    tc_items = []
+    for tc in sorted(list(time_controls)):
+        standard_tc = translate_time_control(tc)
+        category = _get_time_control_category(tc)
+        tc_items.append(fr"\item \texttt{{{standard_tc}}} ({category})")
+
+    # Join the items into a single string to be placed inside the itemize environment
+    tc_list_latex = "\n".join(tc_items)
 
     return dedent(fr'''
-        \newpage
+        \cleardoublepage
         \section*{{{title}}}
         \addcontentsline{{toc}}{{section}}{{{title}}}
         \markright{{{title}}}
@@ -1204,7 +1244,9 @@ def _generate_time_controls_explanation_latex(time_controls, lang='en'):
         \end{{itemize}}
 
         \subsection*{{{msg['time_controls_list_title']}}}
-        {formatted_tc_list}
+        \begin{{itemize}}[leftmargin=*]
+            {tc_list_latex}
+        \end{{itemize}}
     ''')
 
 
