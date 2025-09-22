@@ -1285,9 +1285,6 @@ def generate_chess_book(args):
     preface_content = _process_book_part(design_dir, "preface", args.language)
     back_cover_content = _process_book_part(design_dir, "back-cover", args.language)
 
-    # Check if any front matter content was actually loaded.
-    has_front_matter = any([front_cover_content, dedication_content, epigraph_content, preface_content])
-
     # --- Assemble the Book ---
     tex_master = []
     tex_master.append(f"\\renewcommand{{\\contentsname}}{{{MESSAGES['toc_title']}}}")
@@ -1305,14 +1302,10 @@ def generate_chess_book(args):
     if front_cover_content:
         tex_master.append(front_cover_content)
 
-    # Add a blank page
-    if has_front_matter:
-        tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
-
-    # Generate a simple title page if no front cover was provided but title/author info exists
-    if not front_cover_content and (title or subtitle or author):
-        tex_master.append(_generate_simple_title_page(title, subtitle, author))
+    # Generate a simple title page if title/author info exists
+    if title or subtitle or author:
         tex_master.append(r"\cleardoublepage")
+        tex_master.append(_generate_simple_title_page(title, subtitle, author))
 
     # Ensure dedication, epigraph, TOC, and preface start on an odd page.
     if dedication_content:
@@ -1366,17 +1359,11 @@ def generate_chess_book(args):
         except Exception as e:
             print(MESSAGES['skipping_game_error'].format(game_num=idx + 1, error_msg=e))
 
-    tex_master.append(r"\cleardoublepage")
-
     # The backmatter command is useful for appendices, indices, etc.
     tex_master.append(r"\backmatter")
 
+    tex_master.append(r"\cleardoublepage")
     tex_master.append(_generate_final_page())
-
-    # Add a blank page if there is front matter.
-    if has_front_matter:
-        tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
-        tex_master.append(r"\newpage\thispagestyle{empty}\mbox{}")
 
     # Back Cover at the very end
     if back_cover_content:
