@@ -1,26 +1,27 @@
 import argparse
-import math
-import os
-import sqlite3
-import statistics
-import sys
-from datetime import datetime
-
-import chess.engine
 import chess.pgn
+import chess.engine
+import sys
+import sqlite3
+from datetime import datetime
+import os
+import math
+import statistics
+from collections import defaultdict
 
+# --- CONFIGURATION ---
 ENGINE_PATH = "/opt/homebrew/bin/stockfish"
 
+# --- DATABASE SCHEMA ---
 DB_SCHEMA = {
     "Link": "TEXT PRIMARY KEY", "Event": "TEXT", "Site": "TEXT", "Date": "TEXT",
     "Round": "TEXT", "White": "TEXT", "Black": "TEXT", "Result": "TEXT",
     "WhiteElo": "INTEGER", "BlackElo": "INTEGER", "TimeControl": "TEXT",
     "Termination": "TEXT", "game_datetime": "TIMESTAMP", "winner": "TEXT",
-    "num_moves": "INTEGER", "white_cpl": "REAL", "black_cpl": "REAL",
+    "num_moves": "INTEGER",
+    "white_cpl": "REAL", "black_cpl": "REAL", # Ensure these are present
     "avg_cpl": "REAL", "cpl_std_dev": "REAL",
-    "blunders": "INTEGER", "mistakes": "INTEGER",
-    "promotions": "INTEGER",        # <-- NEW COLUMN
-    "quality_score": "REAL",
+    "blunders": "INTEGER", "mistakes": "INTEGER", "quality_score": "REAL",
     "raw_pgn": "TEXT"
 }
 
@@ -43,427 +44,279 @@ def create_table(conn):
     sql_create_table = f"CREATE TABLE IF NOT EXISTS games ({columns});"
     try:
         c = conn.cursor()
-        c.execute("DROP TABLE IF EXISTS games;")
         c.execute(sql_create_table)
     except sqlite3.Error as e:
         print(e)
 
 
-def insert_game(conn, game_data):
+def insert_game_data(conn, game_data):
     """Insert a new game into the games table."""
-    columns = ', '.join([f'"{col}"' for col in game_data.keys()])
-    placeholders = ':' + ', :'.join(game_data.keys())
-    sql = f'INSERT INTO games ({columns}) VALUES ({placeholders})'
-    try:
-        cur = conn.cursor()
-        cur.execute(sql, game_data)
-        return cur.lastrowid
-    except sqlite3.IntegrityError:
-        print(f"  - SKIPPING: Game with link {game_data.get('Link')} already exists.")
-        return None
-    except Exception as e:
-        print(f"  - ERROR inserting game: {e}")
-        return None
+    columns = ', '.join(game_data.keys())
+    placeholders = ', '.join(['?' for _ in game_data])
+    sql = f'INSERT OR REPLACE INTO games ({columns}) VALUES ({placeholders})'
+    cur = conn.cursor()
+    cur.execute(sql, list(game_data.values()))
+    conn.commit()
+    return cur.lastrowid
 
 
-def handle_export(args):
-    """Handles the 'export' command: queries the DB and writes a new PGN file."""
-    if not os.path.exists(args.db_file):
-        print(f"Error: Database file not found at '{args.db_file}'")
-        return
+# --- ANALYSIS FUNCTIONS ---
 
-    print(f"Exporting top {args.top_n} games from {args.db_file}...")
+def analyze_game(game, engine, username):
+    """Analyzes a single game to extract metrics for both players."""
+    analysis_data = {}
+    white_cpls = []
+    black_cpls = []
 
-    conn = create_connection(args.db_file)
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM games")
-        rows = cur.fetchall()
-        col_names = [desc[0] for desc in cur.description]
-
-        # Convert rows to dicts
-        games = [dict(zip(col_names, row)) for row in rows]
-
-        if args.group_by_timecontrol:
-            # Group games by time control
-            grouped = {}
-            for g in games:
-                tc = g.get("TimeControl") or "unknown"
-                grouped.setdefault(tc, []).append(g)
-
-            all_ranked = []
-            for tc, group_games in grouped.items():
-                print(f"  - Normalizing {len(group_games)} games in time control: {tc}")
-                # Recompute population stats for this time control group
-                pop_stats = compute_population_stats(group_games)
-                for g in group_games:
-                    score = calculate_quality_score(g, pop_stats)
-                    g["quality_score"] = score
-                all_ranked.extend(group_games)
-
-            games = all_ranked
-        else:
-            # Use the scores already in DB (global baseline)
-            pass
-
-        # Apply optional filters
-        if args.min_score is not None:
-            games = [g for g in games if g["quality_score"] >= args.min_score]
-        if args.max_score is not None:
-            games = [g for g in games if g["quality_score"] <= args.max_score]
-
-        # Sort
-        sort_fields = args.sort_by or ["quality_score:desc"]
-        for field in reversed(sort_fields):  # apply in reverse for stable sorting
-            col, order = field.split(":")
-            reverse = order.lower() == "desc"
-            games.sort(key=lambda g: g.get(col, 0) or 0, reverse=reverse)
-
-        # Take top N
-        selected = games[:args.top_n]
-
-        # Write PGN
-        with open(args.output_pgn, "w") as out_file:
-            for g in selected:
-                out_file.write(g["raw_pgn"] + "\n")
-        print("Export complete.")
-
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-    finally:
-        if conn:
-            conn.close()
-
-
-# ------------------------------------------------------------
-# Game analysis
-# ------------------------------------------------------------
-
-def analyze_game(game, engine):
-    """Analyzes a game with Stockfish to get the CPL for each move."""
-    analysis_results = []
     board = game.board()
-    if not list(game.mainline_moves()):
+    moves = list(game.mainline_moves())
+
+    if not moves:
         return None
-    for move in game.mainline_moves():
-        info_before = engine.analyse(board, chess.engine.Limit(depth=12))
-        eval_before = info_before["score"]
-        board.push(move)
-        info_after = engine.analyse(board, chess.engine.Limit(depth=12))
-        eval_after = info_after["score"]
 
-        cpl = 0
-        if not eval_before.is_mate() and not eval_after.is_mate():
-            cp_before = eval_before.white().cp
-            cp_after = eval_after.white().cp
-            if board.turn == chess.BLACK:  # White just moved
-                cpl = max(0, cp_before - cp_after)
-            else:  # Black just moved
-                cpl = max(0, cp_after - cp_before)
+    for move in moves:
+        is_white_move = board.turn == chess.WHITE
+        info = engine.analyse(board, chess.engine.Limit(depth=15))
+        best_move_score = info.get("score").white()
 
-        analysis_results.append({'cpl': cpl, 'is_white_move': board.turn == chess.BLACK})
-    return analysis_results
-
-
-def extract_raw_metrics(game, analysis_results, raw_pgn_str):
-    """Extract unnormalized metrics from one game, including promotions."""
-    headers = game.headers
-    num_moves = len(list(game.mainline_moves()))
-
-    cpls = [d['cpl'] for d in analysis_results]
-    white_cpls = [d['cpl'] for d in analysis_results if d['is_white_move']]
-    black_cpls = [d['cpl'] for d in analysis_results if not d['is_white_move']]
-
-    avg_cpl = sum(cpls) / len(cpls) if cpls else 0
-    cpl_std_dev = statistics.pstdev(cpls) if len(cpls) > 1 else 0
-    white_cpl = sum(white_cpls) / len(white_cpls) if white_cpls else 0
-    black_cpl = sum(black_cpls) / len(black_cpls) if black_cpls else 0
-    blunders = sum(1 for c in cpls if c >= 200)
-    mistakes = sum(1 for c in cpls if 100 <= c < 200)
-
-    # --- New: count pawn promotions ---
-    promotions = 0
-    board = game.board()
-    for move in game.mainline_moves():
-        if move.promotion:  # promotion to queen/rook/bishop/knight
-            promotions += 1
         board.push(move)
 
-    try:
-        utc_date = headers.get("UTCDate", "1970.01.01")
-        utc_time = headers.get("UTCTime", "00:00:00")
-        game_datetime = datetime.strptime(f"{utc_date} {utc_time}", "%Y.%m.%d %H:%M:%S")
-    except ValueError:
-        game_datetime = None
+        info_after = engine.analyse(board, chess.engine.Limit(depth=15))
+        actual_move_score = info_after.get("score").white()
 
-    result = headers.get("Result", "*")
-    winner = "White" if result == "1-0" else ("Black" if result == "0-1" else "Draw")
+        if not best_move_score.is_mate() and not actual_move_score.is_mate():
+            # CPL is the absolute difference in evaluation
+            cpl = abs(best_move_score.score() - actual_move_score.score())
+            if is_white_move:
+                white_cpls.append(cpl)
+            else:
+                black_cpls.append(cpl)
 
-    return {
-        "headers": headers,
-        "raw_pgn": raw_pgn_str,
-        "num_moves": num_moves,
-        "avg_cpl": avg_cpl,
-        "cpl_std_dev": cpl_std_dev,
-        "white_cpl": white_cpl,
-        "black_cpl": black_cpl,
-        "blunders": blunders,
-        "mistakes": mistakes,
-        "promotions": promotions,   # <-- Added metric
-        "winner": winner,
-        "game_datetime": game_datetime,
-    }
+    all_cpls = white_cpls + black_cpls
+    if not all_cpls:
+        return None
 
+    analysis_data['num_moves'] = len(moves)
+    analysis_data['white_cpl'] = statistics.mean(white_cpls) if white_cpls else 0
+    analysis_data['black_cpl'] = statistics.mean(black_cpls) if black_cpls else 0
+    analysis_data['avg_cpl'] = statistics.mean(all_cpls)
+    analysis_data['cpl_std_dev'] = statistics.stdev(all_cpls) if len(all_cpls) > 1 else 0
+    analysis_data['blunders'] = sum(1 for cpl in all_cpls if cpl >= 200)
+    analysis_data['mistakes'] = sum(1 for cpl in all_cpls if 100 <= cpl < 200)
 
-# ------------------------------------------------------------
-# Scoring (relative normalization)
-# ------------------------------------------------------------
-
-def compute_population_stats(all_metrics):
-    """Compute mean and std for key metrics across dataset."""
-    def safe_stats(values):
-        if not values:
-            return 0.0, 1.0
-        return statistics.mean(values), (statistics.pstdev(values) or 1.0)
-
-    avg_cpls   = [m["avg_cpl"]   for m in all_metrics]
-    blunders   = [m["blunders"]  for m in all_metrics]
-    mistakes   = [m["mistakes"]  for m in all_metrics]
-    num_moves  = [m["num_moves"] for m in all_metrics]
-
-    return {
-        "avg_cpl":   safe_stats(avg_cpls),
-        "blunders":  safe_stats(blunders),
-        "mistakes":  safe_stats(mistakes),
-        "num_moves": safe_stats(num_moves),
-    }
+    return analysis_data
 
 
-def calculate_quality_score(metrics, pop_stats, verbose=False):
+def calculate_comparative_score(metrics, stats):
     """
-    Calculate a normalized, non-linear, weighted score for one game.
+    Calculates a sophisticated, comparative quality score, rewarding balanced, high-precision games.
     """
-    avg_cpl     = metrics["avg_cpl"]
-    blunders    = metrics["blunders"]
-    mistakes    = metrics["mistakes"]
-    num_moves   = metrics["num_moves"]
-    promotions  = metrics.get("promotions", 0)  # <-- FIX: safely get promotions
 
-    mean_cpl, std_cpl         = pop_stats["avg_cpl"]
-    mean_blunders, std_blunders = pop_stats["blunders"]
-    mean_mistakes, std_mistakes = pop_stats["mistakes"]
-    mean_moves, std_moves       = pop_stats["num_moves"]
+    def get_z_score(value, mean, std_dev):
+        if std_dev == 0: return 0
+        return (value - mean) / std_dev
 
-    # z-scores (relative performance)
-    z_cpl = (avg_cpl - mean_cpl) / (std_cpl + 1e-6)
-    z_blunders = (blunders - mean_blunders) / (std_blunders + 1e-6)
-    z_mistakes = (mistakes - mean_mistakes) / (std_mistakes + 1e-6)
-    z_moves = (num_moves - mean_moves) / (std_moves + 1e-6)
+    # Normalize metrics for both players
+    white_cpl_z = get_z_score(metrics['white_cpl'], stats['mean_white_cpl'], stats['std_dev_white_cpl'])
+    black_cpl_z = get_z_score(metrics['black_cpl'], stats['mean_black_cpl'], stats['std_dev_black_cpl'])
+    blunders_z = get_z_score(metrics['blunders'], stats['mean_blunders'], stats['std_dev_blunders'])
+    mistakes_z = get_z_score(metrics['mistakes'], stats['mean_mistakes'], stats['std_dev_mistakes'])
+    cpl_std_dev_z = get_z_score(metrics['cpl_std_dev'], stats['mean_cpl_std_dev'], stats['std_dev_cpl_std_dev'])
 
-    # penalties (non-linear)
-    blunder_penalty = math.exp(-blunders / (mean_blunders + 1))
-    mistake_penalty = math.exp(-mistakes / (mean_mistakes + 1))
-    cpl_penalty = max(0, 1 - math.sqrt(avg_cpl / (mean_cpl + 1)))
-    moves_penalty = math.exp(-abs(z_moves))
+    # --- NEW: Balance Score ---
+    # This score rewards games where BOTH players had a low CPL.
+    # It penalizes based on the higher (worse) of the two player CPL z-scores.
+    balance_score = math.exp(-max(0, white_cpl_z, black_cpl_z))
 
-    # clamp relative components
-    rel_cpl = max(1e-6, 1 - z_cpl)
-    rel_blunders = max(1e-6, 1 - z_blunders)
-    rel_mistakes = max(1e-6, 1 - z_mistakes)
+    # Non-Linear Scaling for other metrics
+    blunder_penalty = math.exp(-max(0, blunders_z))
+    mistake_penalty = math.exp(-max(0, mistakes_z))
+    consistency_score = math.exp(-max(0, cpl_std_dev_z))
 
-    # weighted geometric mean
+    # Weighted Aggregation with the new balance_score
+    weights = {'balance': 0.5, 'blunders': 0.2, 'mistakes': 0.1, 'consistency': 0.2}
+
     quality_score = (
-        (cpl_penalty ** 0.25) * (rel_cpl ** 0.10) *
-        (blunder_penalty ** 0.20) * (rel_blunders ** 0.05) *
-        (mistake_penalty ** 0.15) * (rel_mistakes ** 0.05) *
-        (moves_penalty ** 0.20)
+            balance_score ** weights['balance'] *
+            blunder_penalty ** weights['blunders'] *
+            mistake_penalty ** weights['mistakes'] *
+            consistency_score ** weights['consistency']
     )
 
-    final_score = max(0, min(100, quality_score * 100))
+    # Contextual Adjustments for game length and result
+    num_moves = metrics['num_moves']
+    midpoint = 25
+    k = 0.2
+    length_modifier = (1 / (1 + math.exp(-k * (num_moves - midpoint)))) - 0.5
+    quality_score += length_modifier * 0.4
 
-    # contextual bonuses/penalties
-    termination = metrics["headers"].get("Termination", "").lower()
-    result = metrics["headers"].get("Result", "*")
-    white_elo = metrics["headers"].get("WhiteElo")
-    black_elo = metrics["headers"].get("BlackElo")
+    if metrics['winner'] == metrics['username']:
+        quality_score += 0.1
+        if "checkmate" in metrics.get("Termination", ""):
+            quality_score += 0.1
 
-    if "checkmate" in termination:
-        final_score = min(100, final_score + 5)
-    if "time" in termination:
-        final_score *= 0.8
-    if "repetition" in termination or "50 move" in termination:
-        final_score *= 0.9
-
-    try:
-        we, be = int(white_elo), int(black_elo)
-        if result == "1-0" and we < be:
-            final_score = min(100, final_score + 3)
-        elif result == "0-1" and be < we:
-            final_score = min(100, final_score + 3)
-    except (TypeError, ValueError):
-        pass
-
-    if promotions > 0:
-        final_score = min(100, final_score + 2 * promotions)
-
-    # debug printing
-    if verbose:
-        print(f"  Debug: Game {metrics['headers'].get('Link', '')}")
-        print(f"    CPL: {avg_cpl:.2f}, mean={mean_cpl:.2f}, z={z_cpl:.2f}, penalty={cpl_penalty:.3f}, rel={rel_cpl:.3f}")
-        print(f"    Blunders: {blunders}, mean={mean_blunders:.2f}, z={z_blunders:.2f}, penalty={blunder_penalty:.3f}, rel={rel_blunders:.3f}")
-        print(f"    Mistakes: {mistakes}, mean={mean_mistakes:.2f}, z={z_mistakes:.2f}, penalty={mistake_penalty:.3f}, rel={rel_mistakes:.3f}")
-        print(f"    Moves: {num_moves}, mean={mean_moves:.2f}, z={z_moves:.2f}, penalty={moves_penalty:.3f}")
-        print(f"    Promotions: {promotions} → bonus={promotions * 2}")
-        print(f"    Bonuses/Penalties: "
-              f"checkmate={'+5' if 'checkmate' in termination else '0'}, "
-              f"time={'-20%' if 'time' in termination else '0'}, "
-              f"draw={'-10%' if 'repetition' in termination or '50 move' in termination else '0'}")
-        print(f"    => Final Score: {final_score:.2f}\n")
-
-    return final_score
+    return min(1.0, max(0.0, quality_score)) * 100
 
 
+# --- MAIN SCRIPT FUNCTIONS ---
 
+def build_database(input_pgn, db_file, group_by_time_control=False):
+    """
+    Builds the database in two passes to calculate comparative scores.
+    """
+    if os.path.exists(db_file):
+        os.remove(db_file)
 
-# ------------------------------------------------------------
-# Build process (two-pass)
-# ------------------------------------------------------------
-
-def handle_build(args):
-    """Handles the 'build' command: reads PGN, analyzes, and populates the database."""
-    print(f"Building database at: {args.db_file}")
-    if os.path.exists(args.db_file):
-        os.remove(args.db_file)
-        print("  - Overwriting existing database file.")
-
-    conn = create_connection(args.db_file)
-    if conn is None:
-        print("Error! Cannot create the database connection.")
-        return
+    conn = create_connection(db_file)
     create_table(conn)
 
-    try:
-        engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-    except FileNotFoundError:
-        print(f"Error: Stockfish engine not found at '{ENGINE_PATH}'")
-        sys.exit(1)
+    engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
 
-    # --- Pass 1: Collect raw metrics for all games ---
-    all_metrics = []
-    with open(args.input_pgn, "r", encoding="utf-8") as pgn_file:
-        game_num = 1
+    username = None
+    game_count = 0
+
+    print("--- PASS 1: Analyzing games and collecting raw metrics ---")
+    with open(input_pgn) as pgn:
         while True:
-            start_pos = pgn_file.tell()
-            game = chess.pgn.read_game(pgn_file)
-            if game is None:
-                break
-            end_pos = pgn_file.tell()
-            pgn_file.seek(start_pos)
-            raw_pgn = pgn_file.read(end_pos - start_pos)
-            pgn_file.seek(end_pos)
+            game = chess.pgn.read_game(pgn)
+            if game is None: break
+            game_count += 1
+            if username is None: username = game.headers.get("White")
+            print(f"Analyzing game {game_count}...")
 
-            if not raw_pgn.strip():
-                continue
+            analysis_metrics = analyze_game(game, engine, username)
+            if not analysis_metrics: continue
 
-            print(f"Analyzing game {game_num} ({game.headers.get('Link', '')})...")
-            try:
-                analysis = analyze_game(game, engine)
-                if analysis:
-                    m = extract_raw_metrics(game, analysis, raw_pgn)
-                    all_metrics.append(m)
-            except Exception as e:
-                print(f"  - Could not analyze game {game_num}. Skipping. Error: {e}")
+            # --- CORRECTED LOGIC ---
+            # This now filters the game headers to only include keys
+            # that are defined in our DB_SCHEMA, preventing errors.
+            game_data = {}
+            for key in DB_SCHEMA.keys():
+                if key in game.headers:
+                    game_data[key] = game.headers[key]
+                elif key in analysis_metrics:
+                    game_data[key] = analysis_metrics[key]
 
-            game_num += 1
+            game_data["raw_pgn"] = str(game)
+            # Ensure integer fields are correctly typed
+            for key in ["WhiteElo", "BlackElo"]:
+                if key in game_data and game_data[key] != "?":
+                    game_data[key] = int(game_data[key])
+                else:
+                    game_data[key] = 0
 
-    # --- Group by time control ---
-    groups = {}
-    for m in all_metrics:
-        tc = m["headers"].get("TimeControl", "unknown")
-        groups.setdefault(tc, []).append(m)
+            insert_game_data(conn, game_data)
 
-    # --- Pass 2: Compute stats + scores per group ---
-    all_scores = []
-    for tc, group in groups.items():
-        print(f"\nScoring {len(group)} games in time control group: {tc}")
-        pop_stats = compute_population_stats(group)
+    print(f"\n--- PASS 2: Calculating comparative quality scores ---")
 
-        for m in group:
-            score = calculate_quality_score(m, pop_stats, verbose=True)
-            all_scores.append(score)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT Link, white_cpl, black_cpl, blunders, mistakes, cpl_std_dev, num_moves, White, Black, Result, Termination, TimeControl FROM games")
+    all_games_data = cur.fetchall()
 
-            headers = m["headers"]
-            game_data = {
-                "Link": headers.get("Link"),
-                "Event": headers.get("Event"),
-                "Site": headers.get("Site"),
-                "Date": headers.get("Date"),
-                "Round": headers.get("Round"),
-                "White": headers.get("White"),
-                "Black": headers.get("Black"),
-                "Result": headers.get("Result"),
-                "WhiteElo": headers.get("WhiteElo"),
-                "BlackElo": headers.get("BlackElo"),
-                "TimeControl": headers.get("TimeControl"),
-                "Termination": headers.get("Termination"),
-                "game_datetime": m["game_datetime"],
-                "winner": m["winner"],
-                "num_moves": m["num_moves"],
-                "white_cpl": m["white_cpl"],
-                "black_cpl": m["black_cpl"],
-                "avg_cpl": m["avg_cpl"],
-                "cpl_std_dev": m["cpl_std_dev"],
-                "blunders": m["blunders"],
-                "mistakes": m["mistakes"],
-                "promotions": m["promotions"],
-                "quality_score": score,
-                "raw_pgn": m["raw_pgn"],
+    if not all_games_data:
+        print("No games were analyzed. Exiting.")
+        return
+
+    groups = defaultdict(list)
+    for row in all_games_data:
+        key = row[11] if group_by_time_control else 'all'
+        groups[key].append(row)
+
+    for group_key, group_games in groups.items():
+        print(f"Calculating scores for group: '{group_key}' ({len(group_games)} games)")
+
+        stats = {
+            'mean_white_cpl': statistics.mean([g[1] for g in group_games]),
+            'std_dev_white_cpl': statistics.stdev([g[1] for g in group_games]) if len(group_games) > 1 else 0,
+            'mean_black_cpl': statistics.mean([g[2] for g in group_games]),
+            'std_dev_black_cpl': statistics.stdev([g[2] for g in group_games]) if len(group_games) > 1 else 0,
+            'mean_blunders': statistics.mean([g[3] for g in group_games]),
+            'std_dev_blunders': statistics.stdev([g[3] for g in group_games]) if len(group_games) > 1 else 0,
+            'mean_mistakes': statistics.mean([g[4] for g in group_games]),
+            'std_dev_mistakes': statistics.stdev([g[4] for g in group_games]) if len(group_games) > 1 else 0,
+            'mean_cpl_std_dev': statistics.mean([g[5] for g in group_games]),
+            'std_dev_cpl_std_dev': statistics.stdev([g[5] for g in group_games]) if len(group_games) > 1 else 0,
+        }
+
+        for game_data in group_games:
+            link, white_cpl, black_cpl, blunders, mistakes, cpl_std_dev, num_moves, white, black, result, termination, _ = game_data
+
+            winner = ""
+            if result == "1-0":
+                winner = white
+            elif result == "0-1":
+                winner = black
+
+            metrics = {
+                'white_cpl': white_cpl, 'black_cpl': black_cpl, 'blunders': blunders,
+                'mistakes': mistakes, 'cpl_std_dev': cpl_std_dev, 'num_moves': num_moves,
+                'winner': winner, 'username': username, 'Termination': termination
             }
-            insert_game(conn, game_data)
+
+            score = calculate_comparative_score(metrics, stats)
+            cur.execute("UPDATE games SET quality_score = ? WHERE Link = ?", (score, link))
 
     conn.commit()
     conn.close()
     engine.quit()
+    print(f"\n✅ Database '{db_file}' built and scored successfully.")
 
-    # --- Summary of scores ---
-    if all_scores:
-        avg_score = sum(all_scores) / len(all_scores)
-        min_score = min(all_scores)
-        max_score = max(all_scores)
-        print("\n=== Quality Score Summary ===")
-        print(f"  Games analyzed: {len(all_scores)}")
-        print(f"  Min score: {min_score:.2f}")
-        print(f"  Max score: {max_score:.2f}")
-        print(f"  Avg score: {avg_score:.2f}")
 
-        # Histogram (bucketed by 20s)
-        buckets = [0] * 5
-        for s in all_scores:
-            if s < 20: buckets[0] += 1
-            elif s < 40: buckets[1] += 1
-            elif s < 60: buckets[2] += 1
-            elif s < 80: buckets[3] += 1
-            else: buckets[4] += 1
-        print(f"  Distribution:")
-        print(f"    0–19:  {buckets[0]}")
-        print(f"    20–39: {buckets[1]}")
-        print(f"    40–59: {buckets[2]}")
-        print(f"    60–79: {buckets[3]}")
-        print(f"    80–100:{buckets[4]}")
-        print("=============================\n")
+def export_top_games(db_file, output_pgn, top_n, sort_by, min_score, max_score):
+    """Exports the top N games based on the selected sorting criteria."""
+    conn = create_connection(db_file)
+    cur = conn.cursor()
 
-    print("Database build complete.")
+    order_clauses = []
+    for s in sort_by:
+        parts = s.split(':')
+        col = parts[0]
+        direction = parts[1].upper() if len(parts) > 1 and parts[1].lower() in ['asc', 'desc'] else 'DESC'
+        order_clauses.append(f"{col} {direction}")
+
+    query = f"SELECT raw_pgn FROM games"
+
+    where_clauses = []
+    params = []
+    if min_score is not None:
+        where_clauses.append("quality_score >= ?")
+        params.append(min_score)
+    if max_score is not None:
+        where_clauses.append("quality_score <= ?")
+        params.append(max_score)
+
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+
+    query += f" ORDER BY {', '.join(order_clauses)} LIMIT ?"
+    params.append(top_n)
+
+    cur.execute(query, params)
+
+    rows = cur.fetchall()
+
+    with open(output_pgn, 'w') as f:
+        for row in rows:
+            f.write(row[0] + "\n\n")
+
+    conn.close()
+    print(f"✅ Exported {len(rows)} games to '{output_pgn}'.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Analyze a PGN file and store results in a database, then export top games.")
+    parser = argparse.ArgumentParser(description="Analyze and select top chess games from a PGN file.")
     subparsers = parser.add_subparsers(dest="command", required=True, help="Available commands")
 
     # --- Build Command ---
     parser_build = subparsers.add_parser("build", help="Build and populate the analysis database from a PGN file.")
     parser_build.add_argument("input_pgn", type=str, help="Path to the input PGN file.")
     parser_build.add_argument("db_file", type=str, help="Path to the SQLite database file to create.")
+    parser_build.add_argument(
+        "--group_by_time_control",
+        action="store_true",
+        help="Normalize and rank games separately within each time control group."
+    )
 
     # --- Export Command ---
     parser_export = subparsers.add_parser("export", help="Export the top N games from the database to a new PGN file.")
@@ -479,15 +332,10 @@ if __name__ == "__main__":
     )
     parser_export.add_argument("--min_score", type=float, help="Optional: minimum quality score for exported games.")
     parser_export.add_argument("--max_score", type=float, help="Optional: maximum quality score for exported games.")
-    parser_export.add_argument(
-        "--group_by_timecontrol",
-        action="store_true",
-        help="Normalize and rank games separately within each time control group."
-    )
 
     args = parser.parse_args()
 
     if args.command == "build":
-        handle_build(args)
+        build_database(args.input_pgn, args.db_file, args.group_by_time_control)
     elif args.command == "export":
-        handle_export(args)
+        export_top_games(args.db_file, args.output_pgn, args.top_n, args.sort_by, args.min_score, args.max_score)
