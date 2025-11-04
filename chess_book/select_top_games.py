@@ -379,6 +379,7 @@ def build_database(input_pgn, db_file, group_by_time_control=False):
     create_table(conn)
 
     engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
+    engine.configure({"Threads": 1, "Hash": 128})
 
     username = None
     game_count = 0
