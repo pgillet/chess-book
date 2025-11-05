@@ -66,6 +66,7 @@ def get_latex_header_part1(settings):
         \usepackage{{tikz}}
         \usepackage[T1]{{fontenc}}
         \usepackage{{helvet}}
+        \usepackage{{url}}
 
         \definecolor{{ChesscomGreen}}{{RGB}}{{78, 120, 55}}
 
