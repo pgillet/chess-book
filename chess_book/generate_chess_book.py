@@ -1372,7 +1372,7 @@ def generate_chess_book(args):
     engine = None
     try:
         engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-        engine.configure({"Threads": 2, "Hash": 128})
+        engine.configure({"Threads": 1, "Hash": 128})
     except Exception as e:
         print(MESSAGES['error_starting_stockfish'].format(e=e, ENGINE_PATH=ENGINE_PATH))
         print(MESSAGES['analysis_disabled_warning'])
