@@ -555,17 +555,60 @@ def _generate_game_metadata_latex(game, game_index, lang='en'):
     return latex_lines
 
 
-def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False):
+def _extract_cpl_metrics_from_headers(game):
+    """Fetch stored CPL metrics from PGN headers when exported from the DB."""
+    if not game:
+        return {}
+
+    header_map = {
+        'white_cpl': 'WhiteCPL',
+        'black_cpl': 'BlackCPL',
+    }
+
+    extracted = {}
+    for key, header in header_map.items():
+        raw_value = game.headers.get(header)
+        if not raw_value:
+            continue
+        try:
+            extracted[key] = float(raw_value)
+        except ValueError:
+            continue
+    return extracted
+
+
+def _generate_analysis_summary_latex(analysis_data, lang='en', annotated=False, stored_metrics=None):
     """Generate the LaTeX table summarising Stockfish analysis results."""
     if not analysis_data:
         return []
-    total_moves_analyzed = len(analysis_data)
-    white_moves_count = sum(1 for d in analysis_data if d['is_white_move'])
-    black_moves_count = total_moves_analyzed - white_moves_count
-    white_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if d['is_white_move'])
-    black_total_cpl = sum(d['cpl_for_move'] for d in analysis_data if not d['is_white_move'])
+    white_total_cpl = 0
+    white_moves_count = 0
+    black_total_cpl = 0
+    black_moves_count = 0
+
+    for data in analysis_data:
+        before = data['engine_eval_before_played_move'].white()
+        after = data['eval_after_played_move'].white()
+
+        # Skip moves where Stockfish returned a mate score. The database averages do the
+        # same by ignoring such moves entirely, so mirror that behaviour here before
+        # computing the per-side averages we render in LaTeX.
+        if before.is_mate() or after.is_mate():
+            continue
+
+        if data['is_white_move']:
+            white_total_cpl += data['cpl_for_move']
+            white_moves_count += 1
+        else:
+            black_total_cpl += data['cpl_for_move']
+            black_moves_count += 1
+
     white_avg_cpl = (white_total_cpl / white_moves_count) if white_moves_count > 0 else 0
     black_avg_cpl = (black_total_cpl / black_moves_count) if black_moves_count > 0 else 0
+
+    if stored_metrics:
+        white_avg_cpl = stored_metrics.get('white_cpl', white_avg_cpl)
+        black_avg_cpl = stored_metrics.get('black_cpl', black_avg_cpl)
     white_blunders = sum(1 for d in analysis_data if d['is_white_move'] and d['cpl_for_move'] >= 200)
     black_blunders = sum(1 for d in analysis_data if not d['is_white_move'] and d['cpl_for_move'] >= 200)
     white_mistakes = sum(1 for d in analysis_data if d['is_white_move'] and 100 <= d['cpl_for_move'] < 200)
@@ -908,8 +951,11 @@ def export_game_to_latex(game, game_index, output_dir, analysis_data, args, anno
     latex.extend(_generate_game_notation_latex(game, args.notation_type, lang, annotated=annotated))
     latex.extend(_generate_opening_info_latex(game, args.notation_type, lang, annotated=annotated, args=args))
 
+    stored_cpl_metrics = _extract_cpl_metrics_from_headers(game)
+
     if analysis_data:
-        latex.extend(_generate_analysis_summary_latex(analysis_data, lang, annotated=annotated))
+        latex.extend(_generate_analysis_summary_latex(
+            analysis_data, lang, annotated=annotated, stored_metrics=stored_cpl_metrics))
 
     if args.display_boards:
         latex.extend(

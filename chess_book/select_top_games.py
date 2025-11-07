@@ -189,12 +189,15 @@ def analyze_game(game, engine, username):
         actual_move_score = info_after.get("score").white()
 
         if not best_move_score.is_mate() and not actual_move_score.is_mate():
-            # CPL is the absolute difference in evaluation
-            cpl = abs(best_move_score.score() - actual_move_score.score())
-            if is_white_move:
-                white_cpls.append(cpl)
-            else:
-                black_cpls.append(cpl)
+            best_cp = best_move_score.cp
+            actual_cp = actual_move_score.cp
+            if best_cp is not None and actual_cp is not None:
+                if is_white_move:
+                    cpl = max(0, best_cp - actual_cp)
+                    white_cpls.append(cpl)
+                else:
+                    cpl = max(0, actual_cp - best_cp)
+                    black_cpls.append(cpl)
 
     all_cpls = white_cpls + black_cpls
     if not all_cpls:
@@ -209,6 +212,34 @@ def analyze_game(game, engine, username):
     analysis_data['mistakes'] = sum(1 for cpl in all_cpls if 100 <= cpl < 200)
 
     return analysis_data
+
+
+def _format_float_for_header(value):
+    """Format floats for PGN headers without trailing zeros."""
+    if value is None:
+        return None
+    formatted = f"{value:.6f}"
+    formatted = formatted.rstrip('0').rstrip('.')
+    return formatted or "0"
+
+
+def embed_cpl_headers(game, metrics):
+    """Attach the per-colour CPL metrics to the PGN headers for reuse later."""
+    if not metrics:
+        return
+
+    header_map = {
+        'WhiteCPL': 'white_cpl',
+        'BlackCPL': 'black_cpl',
+    }
+
+    for header, metric_key in header_map.items():
+        value = metrics.get(metric_key)
+        if value is None:
+            continue
+        formatted_value = _format_float_for_header(value)
+        if formatted_value is not None:
+            game.headers[header] = formatted_value
 
 
 def calculate_comparative_score(metrics, stats, config=None):
@@ -395,6 +426,8 @@ def build_database(input_pgn, db_file, group_by_time_control=False):
 
             analysis_metrics = analyze_game(game, engine, username)
             if not analysis_metrics: continue
+
+            embed_cpl_headers(game, analysis_metrics)
 
             # --- CORRECTED LOGIC ---
             # This now filters the game headers to only include keys
